@@ -24,9 +24,8 @@ class prepare_data:
     def preprocess_img(self, img):
         cv2.imshow(" ", img)
         cv2.waitKey()
-        imgHSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        imgHSV[:,:,1] = 255
-        return imgHSV
+        
+        return img
 
     def process_img(self, img,type='BGR', method = 'kmeans'):    
         cv2.imshow("origin", img)
@@ -34,16 +33,20 @@ class prepare_data:
         res_img = []
         # method 0: convert to HSV then applying different threshold
         if method == 'threshold':
-            # imgHLS = cv2.cvtColor(img,cv2.COLOR_BGR2HLS)
-            imgHSV = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
-            # cv2.imshow("HLS",imgHLS)
-            # cv2.waitKey()
-            cv2.imshow("HSV",imgHSV)
-            cv2.waitKey()
-            lower_HSV = np.array([110,50,50])
-            upper_HSV = np.array([130,255,255])
-            mask = cv2.inRange(imgHSV, lower_HSV,upper_HSV)
-            res_img = cv2.bitwise_and(imgHSV,imgHSV,mask=mask)
+            if type == 'HSV':
+                imgHSV = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
+                cv2.imshow("HSV",imgHSV)
+                cv2.waitKey()
+                lower_HSV = np.array([110,50,50],dtype=np.uint8)
+                upper_HSV = np.array([130,255,255],dtype=np.uint8)
+                mask = cv2.inRange(imgHSV,lower_HSV,upper_HSV)
+                res_img = cv2.bitwise_and(imgHSV, imgHSV, mask=mask)
+            else:
+                lower_RGB = np.array([80,30,0],dtype=np.uint8)
+                upper_RGB = np.array([160,50,100],dtype=np.uint8)
+                mask = cv2.inRange(img,lower_RGB,upper_RGB)
+                res_img = cv2.bitwise_and(img,img,mask=mask)
+            
             cv2.imshow("after masking", res_img)
             cv2.waitKey()
 
@@ -59,8 +62,8 @@ class prepare_data:
                 img = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
             twoDimg = img.reshape((-1, channels))
             twoDimg = np.float32(twoDimg)
-            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER,10000, 1.0)
-            K = 8 # num of clusters
+            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER,1000, 1.0)
+            K = 7  # num of clusters
             attempts = 100
             ret, label, center = cv2.kmeans(twoDimg,K,None,criteria,attempts,cv2.KMEANS_PP_CENTERS)
             center = np.uint8(center)
@@ -80,22 +83,37 @@ class prepare_data:
         
         # method 3: GrabCut
         if method == 'grabcut':
+            # mask = cv2.Canny(img,100,200)
             mask = np.zeros(img.shape[:2], np.uint8)
             bgd = np.zeros((1,65),np.float64)
             fgd = np.zeros((1,65),np.float64)
             rect = (40,40,240,150)
-            cv2.grabCut(img,mask,rect,bgd,fgd,50,cv2.GC_INIT_WITH_RECT)
+            cv2.grabCut(img,mask,rect,bgd,fgd,3,cv2.GC_INIT_WITH_RECT)
+            cv2.grabCut(img,mask,rect,bgd,fgd,20,cv2.GC_INIT_WITH_MASK)
             mask2 = np.where((mask==2) | (mask==0),0,1).astype('uint8')
             res_img = img * mask2[:,:,np.newaxis]
+            cv2.imshow("res0",res_img)
+            cv2.waitKey()
+            kernel = np.ones((2,2),np.uint8)
+            res_img = cv2.erode(res_img,kernel,iterations=3)
+            res_img = cv2.dilate(res_img,kernel,iterations=1)
             cv2.imshow("res",res_img)
             cv2.waitKey()
 
         return res_img
 
+
+def disp_img(str,img):
+    cv2.imshow(str,img)
+    cv2.waitKey()
+
 if __name__ == "__main__":
     # if input("save image from videos?\n") == 'y' :
     #     save_image()
-    img = cv2.imread("frame0.png")
+    img = cv2.imread("frame300.png")
+    edge_ = cv2.Canny(img,100,200)
+    disp_img("edge",edge_)
     pd = prepare_data()
     img = pd.process_img(img, method='grabcut')
+    img = pd.process_img(img,method='threshold')
     # img = process_img(img,type='HSV')
