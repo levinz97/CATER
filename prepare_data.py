@@ -120,7 +120,7 @@ class prepare_data:
 if __name__ == "__main__":
     # if input("save image from videos?\n") == 'y' :
     #     save_image()
-    img = cv2.imread("frame100.png")
+    img = cv2.imread("frame150.png")
     edge_ = cv2.Canny(img,100,200)
     disp_img("edge",edge_,False)
     # img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
@@ -133,11 +133,13 @@ if __name__ == "__main__":
     imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     ret, thresh = cv2.threshold(imgray, 0, 255, 0)
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    screen = np.zeros(img.shape)
     num_contours = len(contours)
-    print(np.array(contours).shape)
+    print(np.array(contours[1]).shape)
     print(f'number of contours is {len(contours)}')
     for i in range(len(contours)):
-        res = cv2.drawContours(screen,contours[i],1,(255,255,255),3)
+        screen = np.zeros(img.shape)
+        res = cv2.drawContours(screen,contours,i,(255,255,255),1)
+        res = np.array(res,np.int32)
+        print(f'{i}. contour, area: {cv2.contourArea(contours[i])}, length: {cv2.arcLength(contours[i],closed=True)}')
         disp_img(f'{i}',res,kill_window=False)
     disp_img("res",res,kill_window=False)
