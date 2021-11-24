@@ -100,11 +100,10 @@ class prepare_data:
             mask2 = np.where((mask==2) | (mask==0),0,1).astype('uint8') # mask to set all bgd and possible bgd to 0.
             res_img = img * mask2[:,:,np.newaxis]
             disp_img("res0", res_img,kill_window=False)
-            # cv2.destroyAllWindows()
             # img = cv2.GaussianBlur(img,(5,5),0)
             # first erosion then dilation to remove some bright holes after segmentation
             tmp_img = np.copy(res_img)
-            kernel = np.ones((2,2),np.uint8)
+            kernel = np.ones((3,3),np.uint8)
             # res_img = cv2.erode(res_img,kernel,iterations=3)
             # res_img = cv2.dilate(res_img,kernel,iterations=1)
             res_img = cv2.morphologyEx(res_img,cv2.MORPH_OPEN,kernel)
@@ -112,7 +111,7 @@ class prepare_data:
             mask_res_img = np.where(res_img != 0, 255, 0).astype('uint8')
             res_eval = cv2.bitwise_xor(mask_res_img, mask_tmp_img)
             disp_img("difference after opening", res_eval, kill_window=False)
-
+            # res_img = cv2.ximgproc.anisotropicDiffusion(res_img,0.1,100,100)
         return res_img
 
 
@@ -121,10 +120,24 @@ class prepare_data:
 if __name__ == "__main__":
     # if input("save image from videos?\n") == 'y' :
     #     save_image()
-    img = cv2.imread("frame150.png")
+    img = cv2.imread("frame100.png")
     edge_ = cv2.Canny(img,100,200)
     disp_img("edge",edge_,False)
+    # img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
+    # disp_img("dummy", img )
     pd = prepare_data()
     img = pd.process_img(img, method='grabcut')
-    img = pd.process_img(img,method='threshold')
-    # img = process_img(img,type='HSV')
+    # img = pd.process_img(img,method='threshold')
+    # # img = process_img(img,type='HSV')
+
+    imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    ret, thresh = cv2.threshold(imgray, 0, 255, 0)
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    screen = np.zeros(img.shape)
+    num_contours = len(contours)
+    print(np.array(contours).shape)
+    print(f'number of contours is {len(contours)}')
+    for i in range(len(contours)):
+        res = cv2.drawContours(screen,contours[i],1,(255,255,255),3)
+        disp_img(f'{i}',res,kill_window=False)
+    disp_img("res",res,kill_window=False)
