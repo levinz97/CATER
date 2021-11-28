@@ -1,5 +1,4 @@
 import cv2
-from numpy.core.numeric import count_nonzero
 print(cv2.__version__)
 import numpy as np
 import matplotlib.pyplot as plt
@@ -148,12 +147,12 @@ if __name__ == "__main__":
         item = contours[cnt]
         area = cv2.contourArea(item)
         arc_len = cv2.arcLength(item,closed=True)
-        print(f'{cnt}. contour, area: {area}, length: {arc_len:3.4f}')
+        print(f'{cnt}. contour, area: {area:4.0f}, length: {arc_len:8.4f}',end=' ')
 
         # if detected arc_length too small, discard it.
         if arc_len < ARC_LEN_THRESH and area < AREA_THRESH:
             del contours[cnt]
-            print(f'deleted, now total contours = {len(contours)}')
+            print(f'\ndeleted, now total contours = {len(contours)}')
             continue
 
         screen = np.zeros(img.shape[0:-1])
@@ -162,11 +161,17 @@ if __name__ == "__main__":
         shape_mask = np.array(shape,dtype=np.uint8)
         crop_shape= cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
         disp_img("cropped img",crop_shape,kill_window=False)
+        hsv_crop_shape = cv2.cvtColor(crop_shape,cv2.COLOR_BGR2HSV)
+        # disp_img("hsv_img",hsv_crop_shape,kill_window=False )
+        
+        avg_hsv = np.sum(np.sum(hsv_crop_shape,axis=0),axis=0) / area
+        avg_rgb = np.sum(np.sum(crop_shape,axis=0),axis=0) / area
+        print(f'avg_hsv = {avg_hsv}, avg_rgb = {avg_rgb}')
         # display the contours
         boundary = cv2.drawContours(screen,contours,cnt,255,1)
         boundary = np.array(boundary,np.int32)
         disp_img(f'{cnt}',boundary,kill_window=False)
-        
+
         cnt += 1
         
     screen = np.zeros(img.shape[0:-1])
