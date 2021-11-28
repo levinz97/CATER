@@ -1,3 +1,4 @@
 raw_data/
 *.png
 jupyter-notebook/
+one_hot_key.py
