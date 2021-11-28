@@ -1,4 +1,5 @@
 import cv2
+from numpy.core.numeric import count_nonzero
 print(cv2.__version__)
 import numpy as np
 import matplotlib.pyplot as plt
@@ -120,9 +121,9 @@ class prepare_data:
 if __name__ == "__main__":
     # if input("save image from videos?\n") == 'y' :
     #     save_image()
-    img = cv2.imread("frame150.png")
-    edge_ = cv2.Canny(img,100,200)
-    disp_img("edge",edge_,False)
+    img = cv2.imread("frame20.png")
+    # edge_ = cv2.Canny(img,100,200)
+    # disp_img("edge",edge_,False)
     # img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
     # disp_img("dummy", img )
     pd = prepare_data()
@@ -130,16 +131,46 @@ if __name__ == "__main__":
     # img = pd.process_img(img,method='threshold')
     # # img = process_img(img,type='HSV')
 
+    ARC_LEN_THRESH = 10
+    AREA_THRESH = 10
     imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    ret, thresh = cv2.threshold(imgray, 0, 255, 0)
+    _, thresh = cv2.threshold(imgray, 0, 255, 0)
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     num_contours = len(contours)
+    contours = list(contours)
     print(np.array(contours[1]).shape)
     print(f'number of contours is {len(contours)}')
-    for i in range(len(contours)):
-        screen = np.zeros(img.shape)
-        res = cv2.drawContours(screen,contours,i,(255,255,255),1)
-        res = np.array(res,np.int32)
-        print(f'{i}. contour, area: {cv2.contourArea(contours[i])}, length: {cv2.arcLength(contours[i],closed=True)}')
-        disp_img(f'{i}',res,kill_window=False)
-    disp_img("res",res,kill_window=False)
+    cnt = 0
+    while True:
+        if (cnt >= len(contours)):
+            break
+
+        item = contours[cnt]
+        area = cv2.contourArea(item)
+        arc_len = cv2.arcLength(item,closed=True)
+        print(f'{cnt}. contour, area: {area}, length: {arc_len:3.4f}')
+
+        # if detected arc_length too small, discard it.
+        if arc_len < ARC_LEN_THRESH and area < AREA_THRESH:
+            del contours[cnt]
+            print(f'deleted, now total contours = {len(contours)}')
+            continue
+
+        screen = np.zeros(img.shape[0:-1])
+        # display the shape
+        shape = cv2.drawContours(screen,contours,cnt,255,cv2.FILLED)
+        shape_mask = np.array(shape,dtype=np.uint8)
+        crop_shape= cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
+        disp_img("cropped img",crop_shape,kill_window=False)
+        # display the contours
+        boundary = cv2.drawContours(screen,contours,cnt,255,1)
+        boundary = np.array(boundary,np.int32)
+        disp_img(f'{cnt}',boundary,kill_window=False)
+        
+        cnt += 1
+        
+    screen = np.zeros(img.shape[0:-1])
+    all_shapes = cv2.drawContours(screen,contours,-1,255,1)
+    shape_mask = np.array(all_shapes,dtype=np.uint8)
+    crop_shape= cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
+    disp_img("cropped img",crop_shape,kill_window=False)
