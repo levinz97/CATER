@@ -2,6 +2,7 @@ import cv2
 print(cv2.__version__)
 import numpy as np
 import matplotlib.pyplot as plt
+from time import time
 
 # replace opencv waitKey() to avoid error due to pyqt5 
 def disp_img(str,img, kill_window=True):
@@ -11,7 +12,7 @@ def disp_img(str,img, kill_window=True):
     plt.show(block=False)
     plt.waitforbuttonpress(0)
     if kill_window:
-        plt.close()
+        plt.close('all')
     # cv2.imshow(str,img)
     # cv2.waitKey()
 
@@ -38,8 +39,9 @@ class prepare_data:
         
         return img
 
-    def process_img(self, img,type='BGR', method = 'kmeans'):    
-        disp_img("origin", img, kill_window=False )
+    def presegment_img(self, img,type='BGR', method = 'grabcut', display_result = True):    
+        if display_result:
+            disp_img("origin", img, kill_window=False )
         res_img = []
         # method 0: convert to HSV then applying different threshold
         if method == 'threshold':
@@ -78,7 +80,8 @@ class prepare_data:
             label = label.flatten()
             res_img = center[label]
             res_img = res_img.reshape((img.shape))
-            disp_img("res_img",res_img,kill_window=False)
+            if display_result:
+                disp_img("res_img",res_img,kill_window=False)
 
             # display each cluster
             for i in range(K):
@@ -86,7 +89,8 @@ class prepare_data:
                 masked_img = masked_img.reshape((-1,channels))
                 masked_img[label != i] = np.zeros(channels)
                 masked_img = masked_img.reshape((img.shape))
-                disp_img(f'cluster{i}',masked_img, kill_window=False)
+                if display_result:
+                    disp_img(f'cluster{i}',masked_img, kill_window=False)
         
         # method 3: GrabCut
         if method == 'grabcut':
@@ -94,12 +98,13 @@ class prepare_data:
             mask = np.zeros(img.shape[:2], np.uint8)
             bgd = np.zeros((1,65),np.float64)
             fgd = np.zeros((1,65),np.float64)
-            rect = (40,40,240,150)
+            rect = (30,40,240,150 )
             cv2.grabCut(img,mask,rect,bgd,fgd,5,cv2.GC_INIT_WITH_RECT)
             cv2.grabCut(img,mask,rect,bgd,fgd,20,cv2.GC_INIT_WITH_MASK)
             mask2 = np.where((mask==2) | (mask==0),0,1).astype('uint8') # mask to set all bgd and possible bgd to 0.
             res_img = img * mask2[:,:,np.newaxis]
-            disp_img("res0", res_img,kill_window=False)
+            if display_result:
+                disp_img("res0", res_img,kill_window=False)
             # img = cv2.GaussianBlur(img,(5,5),0)
             # first erosion then dilation to remove some bright holes after segmentation
             tmp_img = np.copy(res_img)
@@ -110,72 +115,107 @@ class prepare_data:
             mask_tmp_img = np.where(tmp_img != 0, 255, 0).astype('uint8')
             mask_res_img = np.where(res_img != 0, 255, 0).astype('uint8')
             res_eval = cv2.bitwise_xor(mask_res_img, mask_tmp_img)
-            disp_img("difference after opening", res_eval, kill_window=False)
+            if display_result:
+                disp_img("difference after opening", res_eval, kill_window=False)
             # res_img = cv2.ximgproc.anisotropicDiffusion(res_img,0.1,100,100)
         return res_img
 
+    def get_contours(self, img, display_result = True):
+        disp_contour_val = False
+        MIN_ARC_LEN_THRESH = 20
+        MIN_AREA_THRESH = 20
+
+        MAX_AREA_THRESH = 4000
+
+        imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        _, thresh = cv2.threshold(imgray, 0, 255, 0)
+        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours = list(contours) # convert to list to enable del operation
+        print(f'number of contours is {len(contours)}')
+        cnt = 0
+        while True:
+            if (cnt >= len(contours)):
+                break
+
+            item = contours[cnt]
+            area = cv2.contourArea(item)
+            arc_len = cv2.arcLength(item,closed=True)
+            print(f'{cnt}. contour, area: {area:4.0f}, length: {arc_len:8.4f}',end=' ')
+
+            # if detected arc_length too small, discard it.
+            if (arc_len < MIN_ARC_LEN_THRESH and area < MIN_AREA_THRESH) or area > MAX_AREA_THRESH:
+                del contours[cnt]
+                print(f' wrong segmentation, contour deleted, now total contours = {len(contours)}')
+                continue
+
+            screen = np.zeros(img.shape[0:-1])
+            # get the shape
+            shape = cv2.drawContours(screen,contours,cnt,255,cv2.FILLED)
+            shape_mask = np.array(shape,dtype=np.uint8)
+            crop_shape= cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
+            hsv_crop_shape = cv2.cvtColor(crop_shape,cv2.COLOR_BGR2HSV)
+            
+            if display_result:
+                disp_img("cropped img",crop_shape,kill_window=False)
+                # disp_img("hsv_img",hsv_crop_shape,kill_window=False )
+            
+            Moments = cv2.moments(item)
+            center = [int(Moments['m10']/Moments['m00']), int(Moments['m01']/Moments['m00'])]
+            print(f'center of contour is {center}')
+            avg_hsv = np.sum(np.sum(hsv_crop_shape,axis=0),axis=0) / area
+            avg_rgb = np.sum(np.sum(crop_shape,axis=0),axis=0) / area
+            print(f'avg_hsv = {avg_hsv}, avg_rgb = {avg_rgb}')
+            
+            # display the contours
+            if display_result:
+                screen = np.zeros(img.shape[0:-1])
+                boundary = cv2.drawContours(screen,contours,cnt,255,1)
+                boundary = np.array(boundary,np.int32)
+                disp_img(f'{cnt}',boundary,kill_window=False)
+            if disp_contour_val:
+                for i in item:
+                    x,y = i[0]
+                    print(x, end=',')
+                    print(y, end=',')
+                print('\n')
+            cnt += 1
+        if display_result: 
+            screen = np.zeros(img.shape[0:-1])
+            all_shapes = cv2.drawContours(screen,contours,-1,255,cv2.FILLED) # disp shape: cv2.FILLED, disp contour: 1
+            shape_mask = np.array(all_shapes,dtype=np.uint8)
+            crop_shape= cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
+            disp_img("cropped img",crop_shape,kill_window=True)
+
+        print(f'number of valid contours is {len(contours)}')
+
+        
+
+        return contours
 
 
 
 if __name__ == "__main__":
     # if input("save image from videos?\n") == 'y' :
     #     save_image()
-    img = cv2.imread("frame20.png")
-    # edge_ = cv2.Canny(img,100,200)
-    # disp_img("edge",edge_,False)
-    # img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
-    # disp_img("dummy", img )
-    pd = prepare_data()
-    img = pd.process_img(img, method='grabcut')
-    # img = pd.process_img(img,method='threshold')
-    # # img = process_img(img,type='HSV')
-
-    ARC_LEN_THRESH = 10
-    AREA_THRESH = 10
-    imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(imgray, 0, 255, 0)
-    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    num_contours = len(contours)
-    contours = list(contours)
-    print(np.array(contours[1]).shape)
-    print(f'number of contours is {len(contours)}')
-    cnt = 0
-    while True:
-        if (cnt >= len(contours)):
-            break
-
-        item = contours[cnt]
-        area = cv2.contourArea(item)
-        arc_len = cv2.arcLength(item,closed=True)
-        print(f'{cnt}. contour, area: {area:4.0f}, length: {arc_len:8.4f}',end=' ')
-
-        # if detected arc_length too small, discard it.
-        if arc_len < ARC_LEN_THRESH and area < AREA_THRESH:
-            del contours[cnt]
-            print(f'\ndeleted, now total contours = {len(contours)}')
-            continue
-
-        screen = np.zeros(img.shape[0:-1])
-        # display the shape
-        shape = cv2.drawContours(screen,contours,cnt,255,cv2.FILLED)
-        shape_mask = np.array(shape,dtype=np.uint8)
-        crop_shape= cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
-        disp_img("cropped img",crop_shape,kill_window=False)
-        hsv_crop_shape = cv2.cvtColor(crop_shape,cv2.COLOR_BGR2HSV)
-        # disp_img("hsv_img",hsv_crop_shape,kill_window=False )
+    start = time()
+    need_visuliztion = False
+    for i in range(0,20):
+        filename = 'frame{}.png'
+        # filename = 'test.png'
+        print('>>>>>>>>open file: '+filename.format(str(i*10)))
+        img = cv2.imread(filename.format(str(i*10)))
+        img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
+        # edge_ = cv2.Canny(img,100,200)
+        # disp_img("edge",edge_,False)
+        # img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
+        # disp_img("dummy", img )
+        pd = prepare_data()
         
-        avg_hsv = np.sum(np.sum(hsv_crop_shape,axis=0),axis=0) / area
-        avg_rgb = np.sum(np.sum(crop_shape,axis=0),axis=0) / area
-        print(f'avg_hsv = {avg_hsv}, avg_rgb = {avg_rgb}')
-        # display the contours
-        boundary = cv2.drawContours(screen,contours,cnt,255,1)
-        boundary = np.array(boundary,np.int32)
-        disp_img(f'{cnt}',boundary,kill_window=False)
+        img = pd.presegment_img(img, method='grabcut',display_result=need_visuliztion)
+        # img = pd.process_img(img,method='threshold')
+        # # img = process_img(img,type='HSV')
 
-        cnt += 1
-        
-    screen = np.zeros(img.shape[0:-1])
-    all_shapes = cv2.drawContours(screen,contours,-1,255,1)
-    shape_mask = np.array(all_shapes,dtype=np.uint8)
-    crop_shape= cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
-    disp_img("cropped img",crop_shape,kill_window=False)
+        pd.get_contours(img, display_result=need_visuliztion)
+
+    end = time()
+    print(f'total time = {end-start}')
