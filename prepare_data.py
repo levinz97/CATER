@@ -133,6 +133,7 @@ class prepare_data:
         contours = list(contours) # convert to list to enable del operation
         print(f'number of contours is {len(contours)}')
         cnt = 0
+        bbox_list = []
         while True:
             if (cnt >= len(contours)):
                 break
@@ -149,14 +150,20 @@ class prepare_data:
                 continue
 
             screen = np.zeros(img.shape[0:-1])
+            # get the bounding box
+            bbox = cv2.boundingRect(item)
+            bbox_list.append(bbox)
             # get the shape
             shape = cv2.drawContours(screen,contours,cnt,255,cv2.FILLED)
             shape_mask = np.array(shape,dtype=np.uint8)
             crop_shape= cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
             hsv_crop_shape = cv2.cvtColor(crop_shape,cv2.COLOR_BGR2HSV)
             
+            
             if display_result:
-                disp_img("cropped img",crop_shape,kill_window=False)
+                x,y,w,h = bbox
+                cv2.rectangle(crop_shape, (x,y),(x+w,y+h),255,thickness=1)
+                disp_img(f"{cnt}. cropped img",crop_shape,kill_window=False)
                 # disp_img("hsv_img",hsv_crop_shape,kill_window=False )
             
             Moments = cv2.moments(item)
@@ -184,6 +191,9 @@ class prepare_data:
             all_shapes = cv2.drawContours(screen,contours,-1,255,cv2.FILLED) # disp shape: cv2.FILLED, disp contour: 1
             shape_mask = np.array(all_shapes,dtype=np.uint8)
             crop_shape= cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
+            for i in bbox_list:
+                x,y,w,h = i
+                cv2.rectangle(crop_shape, (x,y),(x+w,y+h),255,thickness=1)
             disp_img("cropped img",crop_shape,kill_window=True)
 
         print(f'number of valid contours is {len(contours)}')
@@ -198,8 +208,8 @@ if __name__ == "__main__":
     # if input("save image from videos?\n") == 'y' :
     #     save_image()
     start = time()
-    need_visuliztion = False
-    for i in range(0,20):
+    need_visuliztion = True
+    for i in range(0,1):
         filename = 'frame{}.png'
         # filename = 'test.png'
         print('>>>>>>>>open file: '+filename.format(str(i*10)))
