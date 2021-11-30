@@ -203,12 +203,12 @@ class prepare_data:
         return contours
 
 
+def main():
 
-if __name__ == "__main__":
     # if input("save image from videos?\n") == 'y' :
     #     save_image()
     start = time()
-    need_visuliztion = True
+    need_visuliztion = True 
     for i in range(0,1):
         filename = 'frame{}.png'
         # filename = 'test.png'
@@ -229,3 +229,6 @@ if __name__ == "__main__":
 
     end = time()
     print(f'total time = {end-start}')
+
+if __name__ == "__main__":
+    main()
