@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from time import time
 
 # replace opencv waitKey() to avoid error due to pyqt5 
-def disp_img(str,img, kill_window=True):
+def dispImg(str,img, kill_window=True):
     plt.figure()
     plt.imshow(img)
     plt.title(str)
@@ -16,7 +16,7 @@ def disp_img(str,img, kill_window=True):
     # cv2.imshow(str,img)
     # cv2.waitKey()
 
-class prepare_data:
+class PrepareData:
     def __init__(self) -> None:
         pass
     
@@ -39,15 +39,15 @@ class prepare_data:
         
         return img
 
-    def presegment_img(self, img,type='BGR', method = 'grabcut', display_result = True):    
+    def presegmentImg(self, img,type='BGR', method = 'grabcut', display_result = True):    
         if display_result:
-            disp_img("origin", img, kill_window=False )
+            dispImg("origin", img, kill_window=False )
         res_img = []
         # method 0: convert to HSV then applying different threshold
         if method == 'threshold':
             if type == 'HSV':
                 imgHSV = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
-                disp_img("HSV",imgHSV)
+                dispImg("HSV",imgHSV)
                 lower_HSV = np.array([110,50,50],dtype=np.uint8)
                 upper_HSV = np.array([130,255,255],dtype=np.uint8)
                 mask = cv2.inRange(imgHSV,lower_HSV,upper_HSV)
@@ -58,7 +58,7 @@ class prepare_data:
                 mask = cv2.inRange(img,lower_RGB,upper_RGB)
                 res_img = cv2.bitwise_and(img,img,mask=mask)
             
-            disp_img("after_masking",res_img)
+            dispImg("after_masking",res_img)
 
 
         # methed 1: using watershed 
@@ -81,7 +81,7 @@ class prepare_data:
             res_img = center[label]
             res_img = res_img.reshape((img.shape))
             if display_result:
-                disp_img("res_img",res_img,kill_window=False)
+                dispImg("res_img",res_img,kill_window=False)
 
             # display each cluster
             for i in range(K):
@@ -90,7 +90,7 @@ class prepare_data:
                 masked_img[label != i] = np.zeros(channels)
                 masked_img = masked_img.reshape((img.shape))
                 if display_result:
-                    disp_img(f'cluster{i}',masked_img, kill_window=False)
+                    dispImg(f'cluster{i}',masked_img, kill_window=False)
         
         # method 3: GrabCut
         if method == 'grabcut':
@@ -98,13 +98,13 @@ class prepare_data:
             mask = np.zeros(img.shape[:2], np.uint8)
             bgd = np.zeros((1,65),np.float64)
             fgd = np.zeros((1,65),np.float64)
-            rect = (30,40,240,150 )
+            rect = (30,40,240,150)
             cv2.grabCut(img,mask,rect,bgd,fgd,5,cv2.GC_INIT_WITH_RECT)
             cv2.grabCut(img,mask,rect,bgd,fgd,20,cv2.GC_INIT_WITH_MASK)
             mask2 = np.where((mask==2) | (mask==0),0,1).astype('uint8') # mask to set all bgd and possible bgd to 0.
             res_img = img * mask2[:,:,np.newaxis]
             if display_result:
-                disp_img("res0", res_img,kill_window=False)
+                dispImg("res0", res_img,kill_window=False)
             # img = cv2.GaussianBlur(img,(5,5),0)
             # first erosion then dilation to remove some bright holes after segmentation
             tmp_img = np.copy(res_img)
@@ -116,17 +116,18 @@ class prepare_data:
             mask_res_img = np.where(res_img != 0, 255, 0).astype('uint8')
             res_eval = cv2.bitwise_xor(mask_res_img, mask_tmp_img)
             if display_result:
-                disp_img("difference after opening", res_eval, kill_window=False)
+                dispImg("difference after opening", res_eval, kill_window=False)
             # res_img = cv2.ximgproc.anisotropicDiffusion(res_img,0.1,100,100)
         return res_img
 
-    def get_contours(self, img, display_result = True):
+    def getContours(self, img, display_result = True):
         disp_contour_val = False
         MIN_ARC_LEN_THRESH = 20
         MIN_AREA_THRESH = 20
 
+        # if area of regions above threshold, need scecond run of GrabCut on it
         MAX_AREA_THRESH = 4000
-
+        refine_area_idx = []
         imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(imgray, 0, 255, 0)
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -163,7 +164,7 @@ class prepare_data:
             if display_result:
                 x,y,w,h = bbox
                 cv2.rectangle(crop_shape, (x,y),(x+w,y+h),255,thickness=1)
-                disp_img(f"{cnt}. cropped img",crop_shape,kill_window=False)
+                dispImg(f"{cnt}. cropped img",crop_shape,kill_window=False)
                 # disp_img("hsv_img",hsv_crop_shape,kill_window=False )
             
             Moments = cv2.moments(item)
@@ -178,7 +179,7 @@ class prepare_data:
                 screen = np.zeros(img.shape[0:-1])
                 boundary = cv2.drawContours(screen,contours,cnt,255,1)
                 boundary = np.array(boundary,np.int32)
-                disp_img(f'{cnt}',boundary,kill_window=False)
+                dispImg(f'{cnt}',boundary,kill_window=False)
             if disp_contour_val:
                 for i in item:
                     x,y = i[0]
@@ -186,7 +187,7 @@ class prepare_data:
                     print(y, end=',')
                 print('\n')
             cnt += 1
-        if display_result: 
+        if not display_result: 
             screen = np.zeros(img.shape[0:-1])
             all_shapes = cv2.drawContours(screen,contours,-1,255,cv2.FILLED) # disp shape: cv2.FILLED, disp contour: 1
             shape_mask = np.array(all_shapes,dtype=np.uint8)
@@ -194,7 +195,7 @@ class prepare_data:
             for i in bbox_list:
                 x,y,w,h = i
                 cv2.rectangle(crop_shape, (x,y),(x+w,y+h),255,thickness=1)
-            disp_img("cropped img",crop_shape,kill_window=True)
+            dispImg("cropped img",crop_shape,kill_window=True)
 
         print(f'number of valid contours is {len(contours)}')
 
@@ -203,13 +204,34 @@ class prepare_data:
         return contours
 
 
+def selectiveSearch(img):
+    ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
+    ss.switchToSelectiveSearchQuality()
+    ss.setBaseImage(img)
+    # ss.switchToSelectiveSearchFast()
+    rects = ss.process()
+    print(f'total number of region proposal: {len(rects)}')
+    numShowRects = 100
+    screen = img.copy()
+    for i, (x,y,w,h) in enumerate(rects):
+        if i < numShowRects:
+            if (w*h < 400 or w*h > 10000):
+                print(f"{w}, {h}")
+                continue
+            cv2.rectangle(screen, (x,y),(x+w, y+h),(0,255,0), thickness=1, lineType= cv2.LINE_AA)
+        else:
+            break
+    dispImg("selective search", screen,kill_window=False)
+    
+        
+
 def main():
 
     # if input("save image from videos?\n") == 'y' :
     #     save_image()
     start = time()
-    need_visuliztion = True 
-    for i in range(0,1):
+    need_visuliztion = False 
+    for i in range(0,10):
         filename = 'frame{}.png'
         # filename = 'test.png'
         print('>>>>>>>>open file: '+filename.format(str(i*10)))
@@ -218,14 +240,14 @@ def main():
         # edge_ = cv2.Canny(img,100,200)
         # disp_img("edge",edge_,False)
         # img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
-        # disp_img("dummy", img )
-        pd = prepare_data()
+        # selectiveSearch(img)
+        pd = PrepareData()
         
-        img = pd.presegment_img(img, method='grabcut',display_result=need_visuliztion)
+        img = pd.presegmentImg(img, method='grabcut',display_result=need_visuliztion)
         # img = pd.process_img(img,method='threshold')
         # # img = process_img(img,type='HSV')
 
-        pd.get_contours(img, display_result=need_visuliztion)
+        pd.getContours(img, display_result=need_visuliztion)
 
     end = time()
     print(f'total time = {end-start}')
