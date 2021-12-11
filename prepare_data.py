@@ -83,6 +83,7 @@ class PrepareData:
             if display_result:
                 dispImg("res_img",res_img,kill_window=False)
 
+
             # display each cluster
             for i in range(K):
                 masked_img = np.copy(img)
@@ -91,6 +92,7 @@ class PrepareData:
                 masked_img = masked_img.reshape((img.shape))
                 if display_result:
                     dispImg(f'cluster{i}',masked_img, kill_window=False)
+
         
         # method 3: GrabCut
         if method == 'grabcut':
@@ -99,12 +101,14 @@ class PrepareData:
             bgd = np.zeros((1,65),np.float64)
             fgd = np.zeros((1,65),np.float64)
             rect = (30,40,240,150)
+
             cv2.grabCut(img,mask,rect,bgd,fgd,5,cv2.GC_INIT_WITH_RECT)
             cv2.grabCut(img,mask,rect,bgd,fgd,20,cv2.GC_INIT_WITH_MASK)
             mask2 = np.where((mask==2) | (mask==0),0,1).astype('uint8') # mask to set all bgd and possible bgd to 0.
             res_img = img * mask2[:,:,np.newaxis]
             if display_result:
                 dispImg("res0", res_img,kill_window=False)
+
             # img = cv2.GaussianBlur(img,(5,5),0)
             # first erosion then dilation to remove some bright holes after segmentation
             tmp_img = np.copy(res_img)
@@ -124,7 +128,6 @@ class PrepareData:
         disp_contour_val = False
         MIN_ARC_LEN_THRESH = 20
         MIN_AREA_THRESH = 20
-
         # if area of regions above threshold, need scecond run of GrabCut on it
         MAX_AREA_THRESH = 4000
         refine_area_idx = []
@@ -230,6 +233,7 @@ def main():
     # if input("save image from videos?\n") == 'y' :
     #     save_image()
     start = time()
+
     need_visuliztion = False 
     for i in range(0,10):
         filename = 'frame{}.png'
@@ -254,3 +258,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
