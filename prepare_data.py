@@ -1,6 +1,4 @@
 import cv2
-
-from numpy.typing import _128Bit
 print(cv2.__version__)
 import numpy as np
 import matplotlib.pyplot as plt
@@ -112,6 +110,7 @@ class PrepareData:
             if self.display_process:
                 dispImg("res_img",res_img,kill_window=False)
 
+
             # display each cluster
             for i in range(K):
                 masked_img = np.copy(img)
@@ -120,6 +119,7 @@ class PrepareData:
                 masked_img = masked_img.reshape((img.shape))
                 if self.display_process:
                     dispImg(f'cluster{i}',masked_img, kill_window=False)
+
         
         # method 3: GrabCut
         if method == 'grabcut':
@@ -328,3 +328,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
