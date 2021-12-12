@@ -3,26 +3,16 @@ import cv2
 from numpy.typing import _128Bit
 print(cv2.__version__)
 import numpy as np
-import matplotlib.pyplot as plt
 from time import time
-
-# replace opencv waitKey() to avoid error due to pyqt5 
-def dispImg(str,img, kill_window=True):
-    plt.figure()
-    plt.imshow(img)
-    plt.title(str)
-    plt.show(block=False)
-    plt.waitforbuttonpress(0)
-    if kill_window:
-        plt.close('all')
-    # cv2.imshow(str,img)
-    # cv2.waitKey()
+from non_maximum_suppression import non_max_suppression
+from utils import dispImg
+import os
 
 class PrepareData:
     def __init__(self, need_visualization=True):
         self.display_process = need_visualization
-        self.display_result =  need_visualization
-    
+        self.display_result =  True
+        self.display_selectiveSearch = True
     def save_image(self):
         vidcap = cv2.VideoCapture("./raw_data/all_action_camera_move/videos/CATER_new_005748.avi")
         success, image = vidcap.read()
@@ -43,23 +33,40 @@ class PrepareData:
         img = self.presegmentImg(img, method='grabcut')
         contours, refine_area_list, bbox_list = self.getContoursFromSegmentedImg(img)
         # refine the wrong segmented region with iterative grabCut
-        max_iterative_cnt = 50
+        max_iterative_cnt = 10
         cnt = 0 # count iterative time
         while len(refine_area_list) > 0:
             cnt += 1
+            print(">>"*20, f'{cnt+1} run of grabcut')
             if cnt > max_iterative_cnt:
                 break
             tmp_refine_list = []
-            _raw_img = raw_img.copy()
+            nms_bbox = []
             for idx, bbox in enumerate(refine_area_list):
-                _img = self._grabCut(_raw_img, bbox)
-                _,_,_w,_h = bbox
-                rect = selectiveSearch(_img, _w*_h)
+                _img = self._grabCut(raw_img, bbox)
+                if cnt % 7 == 0:
+                    _,_,_w,_h = bbox
+                    rect_from_ss = self.selectiveSearch(_img, _w*_h)
+                    print(f'before nms there are {len(rect_from_ss)} bbox')
+                    nms_bbox = non_max_suppression(rect_from_ss, 0.1)
+                    print(nms_bbox)
+                    if len(nms_bbox) > 0:
+                        # expand nms_bbox a little
+                        for i in range(2):
+                            nms_bbox[:,i] -= nms_bbox[:,i]//15
+                        for i in range(2,4):
+                            nms_bbox[:,i] += nms_bbox[:,i]//4
+                        print(f'after nms there are {len(nms_bbox)} bbox')
+                        if self.display_selectiveSearch:
+                            _raw_img = raw_img.copy() 
+                            _raw_img = self._drawBboxOnImg(_raw_img, nms_bbox)
+                            dispImg("after nms",_raw_img, kill_window=False)
                 _contours, _refine_area_list, _bbox_list = self.getContoursFromSegmentedImg(_img)
                 # update new values calculated from refined area
                 contours += _contours
                 bbox_list += _bbox_list
                 tmp_refine_list += _refine_area_list
+                tmp_refine_list += list(nms_bbox)
             refine_area_list = tmp_refine_list
         if self.display_result:          
             self._dispAllContours(raw_img, contours, bbox_list)
@@ -172,7 +179,7 @@ class PrepareData:
         MIN_AREA_THRESH = 40
 
         # if area of regions above threshold, need scecond run of GrabCut on it
-        MAX_AREA_THRESH = 1800
+        MAX_AREA_THRESH = 5000
         SOFT_AREA_THRESH = 10000
         refine_area_list = []
         # convert to single channel, required by cv2.findContours()
@@ -252,13 +259,16 @@ class PrepareData:
         screen = np.zeros(img.shape[0:-1])
         all_shapes = cv2.drawContours(screen,contours,-1,255,cv2.FILLED) # disp shape: cv2.FILLED, disp contour: 1
         shape_mask = np.array(all_shapes,dtype=np.uint8)
-        crop_shape= cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
-        for i in bbox_list:
-            _x,_y,_w,_h = i
-            cv2.rectangle(crop_shape, (_x,_y),(_x+_w,_y+_h),255,thickness=1)
+        crop_shape = cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
+        crop_shape = self._drawBboxOnImg(crop_shape, bbox_list)
 
         dispImg("cropped img",crop_shape,kill_window=True)
         print(f'number of valid contours is {len(contours)}')
+
+    def _drawBboxOnImg(self, img, bbox_list):
+        for _, (_x,_y,_w,_h) in enumerate(bbox_list):
+            cv2.rectangle(img, (_x,_y),(_x+_w,_y+_h),255,thickness=1)
+        return img
     
     def _isInColorRange(self, hue: float):
         "check the detected object is single object or mixed objects by color"
@@ -273,31 +283,34 @@ class PrepareData:
             if isInRange(colors[i], hue):
                 return True
 
-        return False
+        return False    
 
+
+    def selectiveSearch(self, img, img_size=2000):
+        ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
+        ss.setBaseImage(img)
+        ss.switchToSelectiveSearchQuality()
+        # ss.switchToSelectiveSearchFast()
+        rects = np.array(ss.process())
+        print(f'total number of region proposal: {len(rects)}')
+        numShowRects = 100
+        screen = img.copy()
+        picked = []
+        for i, (x,y,w,h) in enumerate(rects):
+            if i < numShowRects:
+                if (w*h < 0.1*img_size or w*h > 0.9*img_size):
+                    print(f"{w}, {h}")
+                    continue
+                else:
+                    picked.append(i)
+                if self.display_selectiveSearch:
+                    cv2.rectangle(screen, (x,y),(x+w, y+h),(0,255,0), thickness=1, lineType= cv2.LINE_AA)
+            else:
+                break
+        if self.display_selectiveSearch:
+            dispImg("selective search", screen,kill_window=False)
+        return rects[picked]
         
-
-
-def selectiveSearch(img, img_size=2000):
-    ss = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
-    ss.setBaseImage(img)
-    ss.switchToSelectiveSearchQuality()
-    # ss.switchToSelectiveSearchFast()
-    rects = ss.process()
-    print(f'total number of region proposal: {len(rects)}')
-    numShowRects = 10
-    screen = img.copy()
-    for i, (x,y,w,h) in enumerate(rects):
-        if i < numShowRects:
-            if (w*h < 0.3*img_size or w*h > 0.6*img_size):
-                print(f"{w}, {h}")
-                continue
-            cv2.rectangle(screen, (x,y),(x+w, y+h),(0,255,0), thickness=1, lineType= cv2.LINE_AA)
-        else:
-            break
-    dispImg("selective search", screen,kill_window=False)
-    return rects
-    
         
 
 def main():
@@ -306,13 +319,20 @@ def main():
     #     save_image()
     cv2.setUseOptimized(True)
     cv2.setNumThreads(4)
-
+    dirname = os.path.join('.','raw_data','first_frame', 'all_actions_first_frame')
     start = time()
-    need_visualization = True
+    need_visualization = False
     for i in range(0,31):
         filename = 'frame{}.png'
+        filenum = str(i)
+        while len(filenum) < 6:
+            filenum = '0'+ filenum
+        filename = "/CATER_new_{}.png".format(filenum)
+        filename = dirname + filename
+        if not os.path.isfile(filename):
+            continue
         # filename = 'test.png'
-        print('\n>>>>>>>>open file: '+filename.format(str(i*10)))
+        print('\n',5*'>>>>>>>>','open file: '+filename.format(str(i*10)))
         img = cv2.imread(filename.format(str(i*10)))
         raw_img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
 
