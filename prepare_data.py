@@ -132,7 +132,29 @@ class PrepareData:
         if method == 'grabcut':
             vorground_rect = (30,40,240,150)
             res_img = self._grabCut(img, vorground_rect)
-        return res_img
+            vorground_rect = (20,20,200,120)
+            res_img2 =  self._grabCut(img,vorground_rect)
+            dispImg("resimg2", res_img2, kill_window=False)
+            diff = res_img2 - res_img
+            
+            diff = np.clip(diff,0,255)
+            res_img += diff
+            dispImg("resimg", res_img)
+            # gridx = 140
+            # gridy = 100
+            # getRect = lambda ix,iy : (10+ix*gridx,10+iy*gridy,gridx,gridy)
+            # num_ix = 320 // gridx + 1
+            # num_iy = 240 // gridy + 1
+            # res_img_list = []
+            # for ix in range(num_ix):
+            #     for iy in range(num_iy):
+            #         print(f"{ix},{iy} grabcut")
+            #         tmp_img=self._grabCut(img, getRect(ix,iy))
+            #         dispImg(f"{ix},{iy} grabcut",tmp_img)
+            #         res_img_list.append(tmp_img)
+            # res_img += np.sum(res_img_list, axis=0)
+            # print(res_img.shape)
+        return res_img.astype(np.uint8)
 
     def _grabCut(self, img, rect) -> np.array: 
         'return the segmented image use cv2.grabCut'
@@ -151,7 +173,6 @@ class PrepareData:
         cv2.grabCut(img,mask,rect,bgd,fgd,5,cv2.GC_INIT_WITH_RECT)
         if self.display_process:
             dispImg("new_mask",mask, kill_window=False)
-
         cv2.grabCut(img,mask,None,bgd,fgd,15,cv2.GC_INIT_WITH_MASK)
         mask2 = np.where((mask==2) | (mask==0),0,1).astype('uint8') # mask to set all bgd and possible bgd to 0.
         res_img = img * mask2[:,:,np.newaxis]
