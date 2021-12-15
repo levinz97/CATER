@@ -5,10 +5,5 @@ one_hot_key.py
 anno_28.11/
 .vscode/
 __pycache__/
-<<<<<<< HEAD
-=======
+*mouse.py
 
-json_input/
-json_output/
-label_maker.py
->>>>>>> 896e600... add feat use selectiveSearch & NMS to grabCut in PrepareData, refactor code

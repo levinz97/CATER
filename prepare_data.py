@@ -10,9 +10,10 @@ import os
 
 class PrepareData:
     def __init__(self, need_visualization=True):
-        self.display_process = need_visualization
+        self.display_process = True
         self.display_result =  True
         self.display_selectiveSearch = True
+        self.display_subregionGrabCut = False
     def save_image(self):
         vidcap = cv2.VideoCapture("./raw_data/all_action_camera_move/videos/CATER_new_005748.avi")
         success, image = vidcap.read()
@@ -33,8 +34,10 @@ class PrepareData:
         img = self.presegmentImg(img, method='grabcut')
         contours, refine_area_list, bbox_list = self.getContoursFromSegmentedImg(img)
         # refine the wrong segmented region with iterative grabCut
-        max_iterative_cnt = 10
+        max_iterative_cnt = 6
         cnt = 0 # count iterative time
+        refine_area_list.append((120,70,100,70))
+        refine_area_list.append((140,120,100,100))
         while len(refine_area_list) > 0:
             cnt += 1
             print(">>"*20, f'{cnt+1} run of grabcut')
@@ -42,13 +45,14 @@ class PrepareData:
                 break
             tmp_refine_list = []
             nms_bbox = []
+           
             for idx, bbox in enumerate(refine_area_list):
                 _img = self._grabCut(raw_img, bbox)
-                if cnt % 7 == 0:
+                if cnt % 6 == 0 :
                     _,_,_w,_h = bbox
                     rect_from_ss = self.selectiveSearch(_img, _w*_h)
                     print(f'before nms there are {len(rect_from_ss)} bbox')
-                    nms_bbox = non_max_suppression(rect_from_ss, 0.1)
+                    nms_bbox = non_max_suppression(rect_from_ss, 0.15)
                     print(nms_bbox)
                     if len(nms_bbox) > 0:
                         # expand nms_bbox a little
@@ -84,7 +88,7 @@ class PrepareData:
         if method == 'threshold':
             if type == 'HSV':
                 imgHSV = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
-                dispImg("HSV",imgHSV)
+                dispImg("HSV",imgHSV, kill_window=False)
                 lower_HSV = np.array([110,50,50],dtype=np.uint8)
                 upper_HSV = np.array([130,255,255],dtype=np.uint8)
                 mask = cv2.inRange(imgHSV,lower_HSV,upper_HSV)
@@ -95,7 +99,7 @@ class PrepareData:
                 mask = cv2.inRange(img,lower_RGB,upper_RGB)
                 res_img = cv2.bitwise_and(img,img,mask=mask)
             
-            dispImg("after_masking",res_img)
+            dispImg("after_masking",res_img,kill_window=False)
 
         # methed 1: using watershed 
         # makers = cv2.watershed(imgHLS, markers)
@@ -128,18 +132,30 @@ class PrepareData:
                 if self.display_process:
                     dispImg(f'cluster{i}',masked_img, kill_window=False)
         
+        def subregionGrabCut(img, res_img, foreground_rect):
+            r'apply grabcut in subregion defined in foreground_rect'
+            res_img2 =  self._grabCut(img,foreground_rect)
+            diff = res_img2.astype(np.int32) - res_img.astype(np.int32)
+            diff = np.clip(diff,0,255).astype(np.uint8)
+            res_img += diff
+            if self.display_subregionGrabCut:
+                dispImg("resimg2", res_img2, kill_window=False)
+                dispImg("diff", diff, kill_window=False)
+                dispImg("resimg", res_img)
+            return res_img
+        
         # method 3: GrabCut
         if method == 'grabcut':
-            vorground_rect = (30,40,240,150)
-            res_img = self._grabCut(img, vorground_rect)
-            vorground_rect = (20,20,200,120)
-            res_img2 =  self._grabCut(img,vorground_rect)
-            dispImg("resimg2", res_img2, kill_window=False)
-            diff = res_img2 - res_img
-            
-            diff = np.clip(diff,0,255)
-            res_img += diff
-            dispImg("resimg", res_img)
+            foreground_rect = (30,40,240,150)
+            res_img = self._grabCut(img, foreground_rect)
+            if self.display_subregionGrabCut:
+                dispImg("resimg", res_img, kill_window=False)
+            foreground_rect = (20,20,60,140)
+            res_img = subregionGrabCut(img, res_img, foreground_rect)
+            foreground_rect = (240,20,60,140)
+            res_img = subregionGrabCut(img,res_img,foreground_rect)
+            # foreground_rect = (140,120,100,100)
+            # res_img = subregionGrabCut(img,res_img,foreground_rect)
             # gridx = 140
             # gridy = 100
             # getRect = lambda ix,iy : (10+ix*gridx,10+iy*gridy,gridx,gridy)
@@ -173,7 +189,7 @@ class PrepareData:
         cv2.grabCut(img,mask,rect,bgd,fgd,5,cv2.GC_INIT_WITH_RECT)
         if self.display_process:
             dispImg("new_mask",mask, kill_window=False)
-        cv2.grabCut(img,mask,None,bgd,fgd,15,cv2.GC_INIT_WITH_MASK)
+        cv2.grabCut(img,mask,rect,bgd,fgd,15,cv2.GC_INIT_WITH_MASK and  cv2.GC_INIT_WITH_RECT)
         mask2 = np.where((mask==2) | (mask==0),0,1).astype('uint8') # mask to set all bgd and possible bgd to 0.
         res_img = img * mask2[:,:,np.newaxis]
         if self.display_process:
@@ -196,12 +212,12 @@ class PrepareData:
 
     def getContoursFromSegmentedImg(self, img):
         disp_contour_val = False
-        MIN_ARC_LEN_THRESH = 40
-        MIN_AREA_THRESH = 40
+        MIN_ARC_LEN_THRESH = 60
+        MIN_AREA_THRESH = 60
 
         # if area of regions above threshold, need scecond run of GrabCut on it
-        MAX_AREA_THRESH = 5000
-        SOFT_AREA_THRESH = 10000
+        MAX_AREA_THRESH = 4000
+        SOFT_AREA_THRESH = 800
         refine_area_list = []
         # convert to single channel, required by cv2.findContours()
         imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -221,7 +237,7 @@ class PrepareData:
             print(f'{cnt}. contour, area: {area:4.0f}, length: {arc_len:8.4f}',end=' ')
 
             # if detected arc_length too small, discard it.
-            if arc_len < MIN_ARC_LEN_THRESH and area < MIN_AREA_THRESH:
+            if arc_len < MIN_ARC_LEN_THRESH or area < MIN_AREA_THRESH:
                 del contours[cnt]
                 print(f'wrong segmentation, too small, contour deleted, now total contours = {len(contours)}')
                 continue
@@ -239,8 +255,8 @@ class PrepareData:
             avg_rgb = np.sum(np.sum(crop_shape,axis=0),axis=0) / area
             print(f'avg_hsv = {avg_hsv}, avg_rgb = {avg_rgb}')
             # if the area too large, refine it with another grabCut
-            hue = avg_hsv[0]
-            if area > MAX_AREA_THRESH or ( SOFT_AREA_THRESH < area and not self._isInColorRange(hue)):
+            hue, saturation, _ = avg_hsv
+            if area > MAX_AREA_THRESH or ( SOFT_AREA_THRESH < area and not self._isInColorRange(hue, saturation)):
                 refine_area_list.append(bbox)
                 del contours[cnt]
                 print(f'wrong segmentation, too large, now total contours = {len(contours)}')
@@ -283,7 +299,7 @@ class PrepareData:
         crop_shape = cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
         crop_shape = self._drawBboxOnImg(crop_shape, bbox_list)
 
-        dispImg("cropped img",crop_shape,kill_window=True)
+        dispImg("all cropped img",crop_shape,kill_window=True)
         print(f'number of valid contours is {len(contours)}')
 
     def _drawBboxOnImg(self, img, bbox_list):
@@ -291,19 +307,24 @@ class PrepareData:
             cv2.rectangle(img, (_x,_y),(_x+_w,_y+_h),255,thickness=1)
         return img
     
-    def _isInColorRange(self, hue: float):
+    def _isInColorRange(self, hue: float, saturation):
         "check the detected object is single object or mixed objects by color"
-        red = (122, 130)
-        brown = (106.4, 115.1)
-        yellow = (100,106.1)
-        colors = [red, brown, yellow]
-        num_of_colors = len(colors)
+        red   = (122, 133)
+        blue  = (7.5, 14)
+        cyan  = (31, 36)
+        green = (68, 88)
+        gold  = (95, 105)
+        purple= (162,177)
+        yellow= (95, 106)
+        brown = (106, 120)
+        colors = [red,blue,cyan,green,gold,purple,yellow,brown]
         isInRange = lambda range, hue : range[0] < hue < range[1]
-        
-        for i in range(num_of_colors):
+        for i in range(len(colors)):
             if isInRange(colors[i], hue):
                 return True
-
+        r"gray cannot detected by hue value, but its Saturation is low"
+        if saturation < 40:
+            return True
         return False    
 
 
@@ -344,7 +365,8 @@ def main():
     start = time()
     need_visualization = False
     for i in range(0,31):
-        filename = 'frame{}.png'
+        # i = np.random.randint(0,5501)
+        # filename = 'frame{}.png'.format(str(i*10))
         filenum = str(i)
         while len(filenum) < 6:
             filenum = '0'+ filenum
@@ -352,15 +374,28 @@ def main():
         filename = dirname + filename
         if not os.path.isfile(filename):
             continue
-        # filename = 'test.png'
+        filename = 'test.png' 
         print('\n',5*'>>>>>>>>','open file: '+filename.format(str(i*10)))
         img = cv2.imread(filename.format(str(i*10)))
         raw_img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
 
-        # img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
+        img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
         # selectiveSearch(img)
 
         pd = PrepareData(need_visualization)
+        r"TODO:maybe use selective search as initial region for grabcut?"
+        # pd.display_selectiveSearch = True
+        # rect_from_ss = pd.selectiveSearch(img, 320*240)
+        # print(f'before nms there are {len(rect_from_ss)} bbox')
+        # nms_bbox = non_max_suppression(rect_from_ss, 0.3)
+        # print(f'after nms there are {len(nms_bbox)} bbox')
+        # im_nms_box = pd._drawBboxOnImg(img,nms_bbox)
+        # dispImg("after nms",im_nms_box)
+        # print(nms_bbox)
+
+        # pd.presegmentImg(img,method='kmeans')
+        # pd.presegmentImg(img,type='HSV',method='threshold')
+
         contours, bbox_list = pd.getContoursWithBbox(raw_img)
         # assert(len(contours)==len(bbox_list),"size not compatible")
         

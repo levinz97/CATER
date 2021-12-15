@@ -18,7 +18,7 @@ class Test_prepare_data(unittest.TestCase):
             contours,_ = pd.getContoursWithBbox(img)
             num = len(contours)
             num_detected_contour.append(num)
-            self.assertGreater(len(contours), 3, msg=f"fails at frame {i}")
+            self.assertGreater(len(contours), 1, msg=f"fails at frame {i}")
         print(f"minimum detected contour is {np.min(num_detected_contour)}")
         print(f"average detected contour is {np.mean(num_detected_contour)}")
 
