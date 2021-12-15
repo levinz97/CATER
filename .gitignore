@@ -6,7 +6,4 @@ anno_28.11/
 .vscode/
 __pycache__/
 
-json_input/
-json_output/
-label_maker.py
-*mouse.py
+

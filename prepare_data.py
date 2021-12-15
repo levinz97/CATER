@@ -12,6 +12,8 @@ class PrepareData:
         self.display_result =  True
         self.display_selectiveSearch = True
         self.display_subregionGrabCut = False
+
+
     def save_image(self):
         vidcap = cv2.VideoCapture("./raw_data/all_action_camera_move/videos/CATER_new_005748.avi")
         success, image = vidcap.read()
@@ -87,6 +89,7 @@ class PrepareData:
             if type == 'HSV':
                 imgHSV = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
                 dispImg("HSV",imgHSV, kill_window=False)
+
                 lower_HSV = np.array([110,50,50],dtype=np.uint8)
                 upper_HSV = np.array([130,255,255],dtype=np.uint8)
                 mask = cv2.inRange(imgHSV,lower_HSV,upper_HSV)
@@ -98,6 +101,7 @@ class PrepareData:
                 res_img = cv2.bitwise_and(img,img,mask=mask)
             
             dispImg("after_masking",res_img,kill_window=False)
+
 
         # methed 1: using watershed 
         # makers = cv2.watershed(imgHLS, markers)
@@ -118,8 +122,10 @@ class PrepareData:
             label = label.flatten()
             res_img = center[label]
             res_img = res_img.reshape((img.shape))
+
             if self.display_process:
                 dispImg("res_img",res_img,kill_window=False)
+
 
             # display each cluster
             for i in range(K):
@@ -219,6 +225,7 @@ class PrepareData:
         SOFT_AREA_THRESH = 800
         refine_area_list = []
         # convert to single channel, required by cv2.findContours()
+
         imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(imgray, 0, 255, 0)
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -243,8 +250,8 @@ class PrepareData:
 
             screen = np.zeros(img.shape[0:-1])
             # get the bounding box
-            bbox = cv2.boundingRect(item)
-       
+            bbox = cv2.boundingRect(item)       
+
             # get the shape
             shape = cv2.drawContours(screen,contours,cnt,255,cv2.FILLED)
             shape_mask = np.array(shape,dtype=np.uint8)
@@ -297,6 +304,7 @@ class PrepareData:
         shape_mask = np.array(all_shapes,dtype=np.uint8)
         crop_shape = cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
         crop_shape = self._drawBboxOnImg(crop_shape, bbox_list)
+
 
         dispImg("all cropped img",crop_shape,kill_window=True)
         print(f'number of valid contours is {len(contours)}')
@@ -353,7 +361,6 @@ class PrepareData:
         return rects[picked]
         
         
-
 def main():
 
     # if input("save image from videos?\n") == 'y' :
