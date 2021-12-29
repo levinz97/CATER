@@ -1,16 +1,13 @@
 import unittest
 from prepare_data import PrepareData
 import cv2
-
 import numpy as np
-
 
 class Test_prepare_data(unittest.TestCase):
     
     def test_get_contours(self):
         pd = PrepareData(need_visualization=False)
         num_detected_contour = []
-
         for i in range(0,31):
             filename = 'frame{}.png'.format(str(i*10))
             print('>>>>>>>>open file: '+filename)
