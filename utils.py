@@ -72,3 +72,4 @@ if __name__ == "__main__":
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     # dispImg("raw img", img)
     getRectFromUserSelect(img)
+
