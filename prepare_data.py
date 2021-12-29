@@ -1,18 +1,19 @@
 import cv2
+from matplotlib.pyplot import get
 print(cv2.__version__)
 import numpy as np
 from time import time
 from non_maximum_suppression import non_max_suppression
-from utils import dispImg
+from utils import dispImg, getRectFromUserSelect
 import os
+import gin
 
 class PrepareData:
     def __init__(self, need_visualization=True):
-        self.display_process = True
+        self.display_process = False
         self.display_result =  True
-        self.display_selectiveSearch = True
+        self.display_selectiveSearch = False
         self.display_subregionGrabCut = False
-
 
     def save_image(self):
         vidcap = cv2.VideoCapture("./raw_data/all_action_camera_move/videos/CATER_new_005748.avi")
@@ -28,6 +29,8 @@ class PrepareData:
             if chr == 'q':
                 break
 
+
+    """main method to get bbox and contour from raw image"""
     def getContoursWithBbox(self, raw_img):
         r'wrap function to preform presegmetImg then iteratively refined with grabCut, input: raw image -> contours, bbox'
         img = raw_img.copy()
@@ -36,8 +39,11 @@ class PrepareData:
         # refine the wrong segmented region with iterative grabCut
         max_iterative_cnt = 6
         cnt = 0 # count iterative time
-        refine_area_list.append((120,70,100,70))
-        refine_area_list.append((140,120,100,100))
+        # TODO: add interactive foreground selection from user
+        usr_select_rect = getRectFromUserSelect(raw_img)
+        refine_area_list += usr_select_rect
+        # refine_area_list.append((120,70,100,70))
+        # refine_area_list.append((140,120,100,100))
         while len(refine_area_list) > 0:
             cnt += 1
             print(">>"*20, f'{cnt+1} run of grabcut')
@@ -48,11 +54,11 @@ class PrepareData:
            
             for idx, bbox in enumerate(refine_area_list):
                 _img = self._grabCut(raw_img, bbox)
-                if cnt % 6 == 0 :
+                if cnt % 4 == 0 :
                     _,_,_w,_h = bbox
                     rect_from_ss = self.selectiveSearch(_img, _w*_h)
                     print(f'before nms there are {len(rect_from_ss)} bbox')
-                    nms_bbox = non_max_suppression(rect_from_ss, 0.15)
+                    nms_bbox = non_max_suppression(rect_from_ss, 0.2)
                     print(nms_bbox)
                     if len(nms_bbox) > 0:
                         # expand nms_bbox a little
@@ -75,8 +81,8 @@ class PrepareData:
         if self.display_result:          
             self._dispAllContours(raw_img, contours, bbox_list)
 
-        print("\n","<<"*50,f"Final Number of detected contours: {len(contours)}",">>"*10)
-        
+
+        print("\n","<<"*50,f"Final Number of detected contours: {len(contours)}","<<"*10)
         return contours, bbox_list
 
     def presegmentImg(self, img,type='BGR', method = 'grabcut'): 
@@ -102,7 +108,6 @@ class PrepareData:
             
             dispImg("after_masking",res_img,kill_window=False)
 
-
         # methed 1: using watershed 
         # makers = cv2.watershed(imgHLS, markers)
         
@@ -122,7 +127,6 @@ class PrepareData:
             label = label.flatten()
             res_img = center[label]
             res_img = res_img.reshape((img.shape))
-
             if self.display_process:
                 dispImg("res_img",res_img,kill_window=False)
 
@@ -194,7 +198,7 @@ class PrepareData:
         cv2.grabCut(img,mask,rect,bgd,fgd,5,cv2.GC_INIT_WITH_RECT)
         if self.display_process:
             dispImg("new_mask",mask, kill_window=False)
-        cv2.grabCut(img,mask,rect,bgd,fgd,15,cv2.GC_INIT_WITH_MASK and  cv2.GC_INIT_WITH_RECT)
+        cv2.grabCut(img,mask,rect,bgd,fgd,15,cv2.GC_INIT_WITH_MASK and cv2.GC_INIT_WITH_RECT)
         mask2 = np.where((mask==2) | (mask==0),0,1).astype('uint8') # mask to set all bgd and possible bgd to 0.
         res_img = img * mask2[:,:,np.newaxis]
         if self.display_process:
@@ -250,8 +254,7 @@ class PrepareData:
 
             screen = np.zeros(img.shape[0:-1])
             # get the bounding box
-            bbox = cv2.boundingRect(item)       
-
+            bbox = cv2.boundingRect(item)
             # get the shape
             shape = cv2.drawContours(screen,contours,cnt,255,cv2.FILLED)
             shape_mask = np.array(shape,dtype=np.uint8)
@@ -259,7 +262,7 @@ class PrepareData:
             hsv_crop_shape = cv2.cvtColor(crop_shape,cv2.COLOR_BGR2HSV)
             avg_hsv = np.sum(np.sum(hsv_crop_shape,axis=0),axis=0) / area
             avg_rgb = np.sum(np.sum(crop_shape,axis=0),axis=0) / area
-            print(f'avg_hsv = {avg_hsv}, avg_rgb = {avg_rgb}')
+            print(f'avg_hsv = {avg_hsv}, avg_rgb = {avg_rgb}', end=' ')
             # if the area too large, refine it with another grabCut
             hue, saturation, _ = avg_hsv
             if area > MAX_AREA_THRESH or ( SOFT_AREA_THRESH < area and not self._isInColorRange(hue, saturation)):
@@ -305,7 +308,6 @@ class PrepareData:
         crop_shape = cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
         crop_shape = self._drawBboxOnImg(crop_shape, bbox_list)
 
-
         dispImg("all cropped img",crop_shape,kill_window=True)
         print(f'number of valid contours is {len(contours)}')
 
@@ -348,7 +350,7 @@ class PrepareData:
         for i, (x,y,w,h) in enumerate(rects):
             if i < numShowRects:
                 if (w*h < 0.1*img_size or w*h > 0.9*img_size):
-                    print(f"{w}, {h}")
+                    print(f"{w}, {h} neglected (size not in range)")
                     continue
                 else:
                     picked.append(i)
@@ -360,9 +362,8 @@ class PrepareData:
             dispImg("selective search", screen,kill_window=False)
         return rects[picked]
         
-        
-def main():
 
+def main():
     # if input("save image from videos?\n") == 'y' :
     #     save_image()
     cv2.setUseOptimized(True)
@@ -371,21 +372,22 @@ def main():
     start = time()
     need_visualization = False
     for i in range(0,31):
-        # i = np.random.randint(0,5501)
+        i = np.random.randint(0,5501)
         # filename = 'frame{}.png'.format(str(i*10))
         filenum = str(i)
         while len(filenum) < 6:
             filenum = '0'+ filenum
-        filename = "/CATER_new_{}.png".format(filenum)
-        filename = dirname + filename
+        filename = "CATER_new_{}.png".format(filenum)
+        filename = os.path.join(dirname, filename)
         if not os.path.isfile(filename):
             continue
-        filename = 'test.png' 
+        # filename = 'test.png' 
         print('\n',5*'>>>>>>>>','open file: '+filename.format(str(i*10)))
         img = cv2.imread(filename.format(str(i*10)))
         raw_img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
+        # dispImg("raw",raw_img)
 
-        img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
+        # img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
         # selectiveSearch(img)
 
         pd = PrepareData(need_visualization)
@@ -398,6 +400,7 @@ def main():
         # im_nms_box = pd._drawBboxOnImg(img,nms_bbox)
         # dispImg("after nms",im_nms_box)
         # print(nms_bbox)
+
 
         # pd.presegmentImg(img,method='kmeans')
         # pd.presegmentImg(img,type='HSV',method='threshold')
