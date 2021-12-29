@@ -7,7 +7,6 @@ from time import time
 from non_maximum_suppression import non_max_suppression
 from utils import dispImg, getRectFromUserSelect
 import os
-import gin
 
 class PrepareData:
     def __init__(self, need_visualization=True):
@@ -15,6 +14,8 @@ class PrepareData:
         self.display_result =  True
         self.display_selectiveSearch = False
         self.display_subregionGrabCut = False
+        self.allow_user_select_rect = True
+        self.allow_iterative_refinement = True
     def save_image(self):
         vidcap = cv2.VideoCapture("./raw_data/all_action_camera_move/videos/CATER_new_005748.avi")
         success, image = vidcap.read()
@@ -35,48 +36,60 @@ class PrepareData:
         img = raw_img.copy()
         img = self.presegmentImg(img, method='grabcut')
         contours, refine_area_list, bbox_list = self.getContoursFromSegmentedImg(img)
+
         # refine the wrong segmented region with iterative grabCut
-        max_iterative_cnt = 6
-        cnt = 0 # count iterative time
-        # TODO: add interactive foreground selection from user
-        usr_select_rect = getRectFromUserSelect(raw_img)
-        refine_area_list += usr_select_rect
-        # refine_area_list.append((120,70,100,70))
-        # refine_area_list.append((140,120,100,100))
-        while len(refine_area_list) > 0:
-            cnt += 1
-            print(">>"*20, f'{cnt+1} run of grabcut')
-            if cnt > max_iterative_cnt:
-                break
-            tmp_refine_list = []
-            nms_bbox = []
-           
-            for idx, bbox in enumerate(refine_area_list):
-                _img = self._grabCut(raw_img, bbox)
-                if cnt % 4 == 0 :
-                    _,_,_w,_h = bbox
-                    rect_from_ss = self.selectiveSearch(_img, _w*_h)
-                    print(f'before nms there are {len(rect_from_ss)} bbox')
-                    nms_bbox = non_max_suppression(rect_from_ss, 0.2)
-                    print(nms_bbox)
-                    if len(nms_bbox) > 0:
-                        # expand nms_bbox a little
-                        for i in range(2):
-                            nms_bbox[:,i] -= nms_bbox[:,i]//15
-                        for i in range(2,4):
-                            nms_bbox[:,i] += nms_bbox[:,i]//4
-                        print(f'after nms there are {len(nms_bbox)} bbox')
-                        if self.display_selectiveSearch:
-                            _raw_img = raw_img.copy() 
-                            _raw_img = self._drawBboxOnImg(_raw_img, nms_bbox)
-                            dispImg("after nms",_raw_img, kill_window=False)
-                _contours, _refine_area_list, _bbox_list = self.getContoursFromSegmentedImg(_img)
-                # update new values calculated from refined area
-                contours += _contours
-                bbox_list += _bbox_list
-                tmp_refine_list += _refine_area_list
-                tmp_refine_list += list(nms_bbox)
-            refine_area_list = tmp_refine_list
+        def refineWithIterativeMethod(contours, refine_area_list, bbox_list, max_iterative_cnt = 8):
+            cnt = 0 # count iterative time
+            while len(refine_area_list) > 0 or len(bbox_list) < 5:
+                cnt += 1
+                print(">>"*20, f'{cnt+1} run of grabcut')
+                if cnt > max_iterative_cnt:
+                    break
+                tmp_refine_list = []
+                nms_bbox = []
+                if self.allow_user_select_rect and cnt % 6 == 0:
+                # interactive foreground selection from user
+                    if(len(contours) < 6):
+                        print("number of bbox detected too small, user input needed!")
+                    self._dispAllContours(img, contours, bbox_list,close_all_windows_afterwards=False)
+                    usr_select_rect = getRectFromUserSelect(raw_img)
+                    refine_area_list += usr_select_rect
+                for idx, bbox in enumerate(refine_area_list):
+                    _img = self._grabCut(raw_img, bbox)
+                    if cnt == 4:
+                        _,_,_w,_h = bbox
+                        rect_from_ss = self.selectiveSearch(_img, _w*_h)
+                        print(f'before nms there are {len(rect_from_ss)} bbox')
+                        nms_bbox = non_max_suppression(rect_from_ss, 0.2)
+                        print(nms_bbox)
+                        if len(nms_bbox) > 0:
+                            # expand nms_bbox a little
+                            for i in range(2):
+                                nms_bbox[:,i] -= nms_bbox[:,i]//15
+                            for i in range(2,4):
+                                nms_bbox[:,i] += nms_bbox[:,i]//4
+                            print(f'after nms there are {len(nms_bbox)} bbox')
+                            if self.display_selectiveSearch:
+                                _raw_img = raw_img.copy() 
+                                _raw_img = self._drawBboxOnImg(_raw_img, nms_bbox)
+                                dispImg("after nms",_raw_img, kill_window=False)
+                    _contours, _refine_area_list, _bbox_list = self.getContoursFromSegmentedImg(_img)
+                    # update new values calculated from refined area
+                    contours += _contours
+                    bbox_list += _bbox_list
+                    tmp_refine_list += _refine_area_list
+                    tmp_refine_list += list(nms_bbox)
+                refine_area_list = tmp_refine_list
+            return contours, refine_area_list, bbox_list
+
+        if self.allow_iterative_refinement:
+            contours, refine_area_list, bbox_list = refineWithIterativeMethod(contours, refine_area_list, bbox_list)
+
+        if self.allow_user_select_rect and self.display_result:
+            self._dispAllContours(img, contours, bbox_list, close_all_windows_afterwards=False)
+            refine_area_list += getRectFromUserSelect(raw_img)
+            contours, refine_area_list, bbox_list = refineWithIterativeMethod(contours, refine_area_list, bbox_list, max_iterative_cnt=3)
+
         if self.display_result:          
             self._dispAllContours(raw_img, contours, bbox_list)
 
@@ -205,7 +218,7 @@ class PrepareData:
         kernel = np.ones((2,2),np.uint8)
         # res_img = cv2.erode(res_img,kernel,iterations=3)
         # res_img = cv2.dilate(res_img,kernel,iterations=1)
-        res_img = cv2.morphologyEx(res_img,cv2.MORPH_OPEN,kernel)
+        # res_img = cv2.morphologyEx(res_img,cv2.MORPH_OPEN,kernel)
         mask_tmp_img = np.where(tmp_img != 0, 255, 0).astype('uint8')
         mask_res_img = np.where(res_img != 0, 255, 0).astype('uint8')
         res_eval = cv2.bitwise_xor(mask_res_img, mask_tmp_img)
@@ -217,11 +230,11 @@ class PrepareData:
 
     def getContoursFromSegmentedImg(self, img):
         disp_contour_val = False
-        MIN_ARC_LEN_THRESH = 60
+        MIN_ARC_LEN_THRESH = 20
         MIN_AREA_THRESH = 60
 
         # if area of regions above threshold, need scecond run of GrabCut on it
-        MAX_AREA_THRESH = 4000
+        MAX_AREA_THRESH = 11000
         SOFT_AREA_THRESH = 800
         refine_area_list = []
         # convert to single channel, required by cv2.findContours()
@@ -297,14 +310,14 @@ class PrepareData:
 
         return contours, refine_area_list, bbox_list
 
-    def _dispAllContours(self, img, contours, bbox_list):
+    def _dispAllContours(self, img, contours, bbox_list, close_all_windows_afterwards = True):
         screen = np.zeros(img.shape[0:-1])
         all_shapes = cv2.drawContours(screen,contours,-1,255,cv2.FILLED) # disp shape: cv2.FILLED, disp contour: 1
         shape_mask = np.array(all_shapes,dtype=np.uint8)
         crop_shape = cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
         crop_shape = self._drawBboxOnImg(crop_shape, bbox_list)
 
-        dispImg("all cropped img",crop_shape,kill_window=True)
+        dispImg("all cropped img",crop_shape,kill_window=close_all_windows_afterwards)
         print(f'number of valid contours is {len(contours)}')
 
     def _drawBboxOnImg(self, img, bbox_list):
@@ -315,11 +328,11 @@ class PrepareData:
     def _isInColorRange(self, hue: float, saturation):
         "check the detected object is single object or mixed objects by color"
         red   = (122, 133)
-        blue  = (7.5, 14)
+        blue  = (7, 14)
         cyan  = (31, 36)
-        green = (68, 88)
+        green = (67, 88)
         gold  = (95, 105)
-        purple= (162,177)
+        purple= (158,177)
         yellow= (95, 106)
         brown = (106, 120)
         colors = [red,blue,cyan,green,gold,purple,yellow,brown]
@@ -346,7 +359,8 @@ class PrepareData:
         for i, (x,y,w,h) in enumerate(rects):
             if i < numShowRects:
                 if (w*h < 0.1*img_size or w*h > 0.9*img_size):
-                    print(f"{w}, {h} neglected (size not in range)")
+                    if self.display_selectiveSearch:
+                        print(f"{w}, {h} neglected (size not in range)")
                     continue
                 else:
                     picked.append(i)
@@ -373,6 +387,7 @@ def main():
         i = np.random.randint(0,5501)
         # filename = 'frame{}.png'.format(str(i*10))
         filenum = str(i)
+        filenum = "005192"
         while len(filenum) < 6:
             filenum = '0'+ filenum
         filename = "CATER_new_{}.png".format(filenum)
