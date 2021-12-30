@@ -88,7 +88,7 @@ if __name__ == '__main__':
     new_label = Label(shape_values, color_values, size_values, material_values, label_color)
     new_label.set_label()
     cvat_json = json.dumps(new_label.cvat_array)
-    with open('./label_new_setting1', 'w', encoding='UTF-8') as output_file:
+    with open('./label_new_setting1.json', 'w', encoding='UTF-8') as output_file:
         output_file.write(cvat_json)
         output_file.close()
 
