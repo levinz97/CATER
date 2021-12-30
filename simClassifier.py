@@ -47,10 +47,11 @@ class Data_hsv():
         # print(label_dict)
         return label_dict
 
-
-class Svm():
+# TODO refactor needed
+class SimClassifier():
     def __init__(self, label_dict):
         self.label_dict = label_dict
+        # TODO: model construct here: self.models
 
     # The label selected for training can be color*material c*m or pure color c or pure material m
     def class_choice(self, class_label):
@@ -101,6 +102,12 @@ class Svm():
                 feature.append(hsv)
                 label.append(i)
         return feature, label
+    def eval(self):
+        # TODO evaluate model accuracy 
+        pass
+    def predict(self):
+        # TODO predict 
+        pass
 
     def train(self, feature, label):
         random_state = np.random.RandomState(np.random.randint(0, 1000))
@@ -158,7 +165,7 @@ class Svm():
 
         y_test_pred = y_test_pred.astype(np.uint8)
         print(y_test_pred)
-        
+        # find the mode of output 
         if len(y_test_pred.shape) > 1:
             y_test_pred = y_test_pred.transpose()
             y_test_pred, _ = stats.mode(y_test_pred, axis=1)
@@ -183,7 +190,7 @@ def main():
     dataset = Data_hsv()
     label_dict = dataset.get_label_dict()
     class_label = input('input your class label: c*m or c or m   ')
-    svm1 = Svm(label_dict)
+    svm1 = SimClassifier(label_dict)
     label = svm1.class_choice(class_label)
     feature, label = label()
     # print(feature)

@@ -7,15 +7,16 @@ from time import time
 from non_maximum_suppression import non_max_suppression
 from utils import dispImg, getRectFromUserSelect
 import os
-
+from simClassifier import SimClassifier
 class PrepareData:
     def __init__(self, need_visualization=True):
-        self.display_process = False
+        self.display_process = True
         self.display_result =  True
         self.display_selectiveSearch = False
         self.display_subregionGrabCut = False
         self.allow_user_select_rect = True
         self.allow_iterative_refinement = True
+        # self.cls = SimClassifier()
     def save_image(self):
         vidcap = cv2.VideoCapture("./raw_data/all_action_camera_move/videos/CATER_new_005748.avi")
         success, image = vidcap.read()
