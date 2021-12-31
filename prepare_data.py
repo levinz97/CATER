@@ -1,7 +1,5 @@
 import cv2
-
-from numpy.typing import _128Bit
-print(cv2.__version__)
+# print(cv2.__version__)
 import numpy as np
 from time import time
 from non_maximum_suppression import non_max_suppression
@@ -10,7 +8,7 @@ import os
 from simClassifier import SimClassifier
 class PrepareData:
     def __init__(self, need_visualization=True):
-        self.display_process = True
+        self.display_process = False
         self.display_result =  True
         self.display_selectiveSearch = False
         self.display_subregionGrabCut = False
@@ -87,9 +85,10 @@ class PrepareData:
             contours, refine_area_list, bbox_list = refineWithIterativeMethod(contours, refine_area_list, bbox_list)
 
         if self.allow_user_select_rect and self.display_result:
-            self._dispAllContours(img, contours, bbox_list, close_all_windows_afterwards=False)
-            refine_area_list += getRectFromUserSelect(raw_img)
-            contours, refine_area_list, bbox_list = refineWithIterativeMethod(contours, refine_area_list, bbox_list, max_iterative_cnt=3)
+            for i in range(2):
+                self._dispAllContours(img, contours, bbox_list, close_all_windows_afterwards=False)
+                refine_area_list += getRectFromUserSelect(raw_img)
+                contours, refine_area_list, bbox_list = refineWithIterativeMethod(contours, refine_area_list, bbox_list, max_iterative_cnt=3)
 
         if self.display_result:          
             self._dispAllContours(raw_img, contours, bbox_list)
@@ -308,7 +307,7 @@ class PrepareData:
             cnt += 1
         if self.display_process:
             self._dispAllContours(img, contours, bbox_list)
-
+        # TODO: return avg_hsv, center of contour
         return contours, refine_area_list, bbox_list
 
     def _dispAllContours(self, img, contours, bbox_list, close_all_windows_afterwards = True):
@@ -328,9 +327,9 @@ class PrepareData:
     
     def _isInColorRange(self, hue: float, saturation):
         "check the detected object is single object or mixed objects by color"
-        red   = (122, 133)
+        red   = (121, 133)
         blue  = (7, 14)
-        cyan  = (31, 36)
+        cyan  = (29, 36)
         green = (67, 88)
         gold  = (95, 105)
         purple= (158,177)
@@ -388,7 +387,7 @@ def main():
         i = np.random.randint(0,5501)
         # filename = 'frame{}.png'.format(str(i*10))
         filenum = str(i)
-        filenum = "005192"
+        # filenum = "005192"
         while len(filenum) < 6:
             filenum = '0'+ filenum
         filename = "CATER_new_{}.png".format(filenum)
