@@ -18,7 +18,7 @@ class Data_hsv():
 
     # The statistical color and material information is included in the hsv.json file
     def get_label_dict(self):
-        input_path = './hsv'
+        input_path = './hsv.json'
         with open(input_path, 'r', encoding='UTF-8') as input_file:
             dictionary = json.load(input_file)
             input_file.close()
