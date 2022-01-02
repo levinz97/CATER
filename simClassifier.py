@@ -1,7 +1,6 @@
 import json
 import numpy as np
 import warnings
-from scipy.sparse.construct import rand
 from sklearn.model_selection import train_test_split
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn import svm, metrics
@@ -18,7 +17,7 @@ class Data_hsv():
 
     # The statistical color and material information is included in the hsv.json file
     def get_label_dict(self):
-        input_path = './hsv.json'
+        input_path = './raw_data/hsv.json'
         with open(input_path, 'r', encoding='UTF-8') as input_file:
             dictionary = json.load(input_file)
             input_file.close()
@@ -48,14 +47,15 @@ class Data_hsv():
 
 
 class SimClassifier():
-    def __init__(self, class_label):
+    def __init__(self, class_label="c*m"):
         self.class_label = class_label
         dataset = Data_hsv()
         self.label_dict = dataset.get_label_dict()
         self.models = []
-        self.trained_models = []
-        self.label_convert_lsit = {}
-        # model construct here: self.models
+        self.label_convert_dict = self.dict_choice()
+
+    def get_label_dict(self):
+        return self.label_convert_dict
 
     # The label selected for training can be color*material c*m or pure color c or pure material m
     def class_choice(self):
@@ -142,12 +142,12 @@ class SimClassifier():
         return self.X_train, self.X_test, self.y_train, self.y_test
 
     def model_initial(self):
-        # models = []
         random_state = np.random.RandomState(np.random.randint(0, 1000))
         model = OneVsRestClassifier(svm.SVC(kernel='poly', probability=True, random_state=random_state))
+        # model = make_pipeline(StandardScaler(),model)
         self.models.append(model)
         model = RandomForestClassifier(n_estimators=80, random_state=random_state)
-        # self.models.append(model)#85
+        self.models.append(model)#85
         model = RandomForestClassifier(n_estimators=120, random_state=random_state)
         # self.models.append(model)#85
         model1 = RandomForestClassifier(n_estimators=350, random_state=random_state)
@@ -155,8 +155,8 @@ class SimClassifier():
         model2 = MLPClassifier(solver='lbfgs', alpha=1e-6, hidden_layer_sizes=(5, 18, 10, 5), random_state=random_state)
         # self.models.append(model2)
         model3 = MLPClassifier(solver='sgd', activation='relu', learning_rate_init=0.0005, learning_rate='adaptive',
-                               alpha=1e-6, hidden_layer_sizes=(150), random_state=random_state)
-        # self.models.append(model3) # for m
+                               alpha=1e-6, hidden_layer_sizes=(150),max_iter=1000, random_state=random_state)
+        self.models.append(model3) # for m
         model4 = MLPClassifier(solver='adam', activation='relu', learning_rate_init=1e-3, alpha=1e-3,
                                hidden_layer_sizes=(20, 40, 60, 80), max_iter=1000, random_state=random_state)
         self.models.append(model4)
@@ -168,24 +168,20 @@ class SimClassifier():
         assert len(self.models) > 0, "no model added!"
         print("[INFO] Successfully initialize a new model !")
         #return self.models
-        # print("[INFO] Training the model…… ")
 
     def train(self):
         feature, label = self.class_choice()()
-        self.label_convert_lsit = self.dict_choice()
+
         self.data_initial(feature, label)
         self.model_initial()
         for model in self.models:
-            pipe = model
-            pipe.fit(self.X_train, self.y_train)
-            self.trained_models.append(pipe)
+            model.fit(self.X_train, self.y_train)
         print("[INFO] Model training completed !")
 
     def ensembleLearning(self, X_test):
-        # pipe = make_pipeline(StandardScaler(),model)
         y_test_pred = 0
         cnt = 0
-        for trained_model in self.trained_models:
+        for trained_model in self.models:
             cnt += 1
             y_p = trained_model.predict(X_test)  # 预测结果
             if isinstance(y_test_pred, int):
@@ -193,7 +189,7 @@ class SimClassifier():
             else:
                 if np.max(y_p) != np.min(y_p):  # 最大值不等于最小值
                     y_test_pred = np.vstack((y_test_pred, y_p))  # 把它堆起来
-                    # if m == model5  or m == model4:
+                    # if trained_model == self.models.model5  or trained_model == self.models.model4:
                     #     y_test_pred = np.vstack((y_test_pred,y_p))
                 else:
                     print(
@@ -205,51 +201,46 @@ class SimClassifier():
         if len(y_test_pred.shape) > 1:
             y_test_pred, _ = stats.mode(y_test_pred, axis=0)
             y_test_pred = y_test_pred[0]
-        print(y_test_pred)
-        if X_test.all() == self.X_test.all():
-            print(f"GT:\n {self.y_test}")
-        return all_pred, y_test_pred  # pred for ensembleLearning models
+        print(f"final decision:\n {y_test_pred}")
+        return all_pred.transpose(), y_test_pred  # pred for ensembleLearning models
 
     def predict(self, X_test):  # X_test: input of hsv:list
         all_pred, y_test_pred = self.ensembleLearning(X_test)
-        return all_pred, y_test_pred, self.label_convert_lsit
+        return all_pred, y_test_pred
         # pred for each model
 
     def eval(self, y_test_pred):
         # TODO evaluate model accuracy
+        print(f"GT:\n {self.y_test}")
         ov_acc = metrics.accuracy_score(y_test_pred, self.y_test)
-        # ov_acc = pipe.score(X_test, y_test)
         print("overall accuracy: %f" % (ov_acc))
         print("===========================================")
         acc_for_each_class = metrics.precision_score(
-            self.y_test, y_test_pred, average=None)
+            self.y_test, y_test_pred, average=None, zero_division=1)
         print("acc_for_each_class:\n", acc_for_each_class)
         print("===========================================")
         avg_acc = np.mean(acc_for_each_class)
-        print("average accuracy:%f" % (avg_acc))
+        print("average class accuracy:%f" % (avg_acc))
         return ov_acc
 
 
 def main():
     # warnings.filterwarnings('ignore')
-    # class_label = input('input your class label: c*m or c or m   ')
-    # simc = SimClassifier()
-    # label = simc.class_choice(class_label)
-    # feature, label = label()
-    # attribut_dict = simc.dict_choice(class_label)  # can be used later for attributes search
-    # simc.data_initial(feature, label)
-    # simc.model_initial()
-    # trained_model_list = simc.model_train()
-    # _, y_test_pred = simc.ensembleLearning(trained_model_list, simc.X_test)
-    # simc.eval(y_test_pred)
-    # # X_test input your data hsv value
-    # # all_pred, y_test_pred = simc.ensembleLearning(trained_model_list, X_test)
-    # # print(all_pred)
-    # # print(y_test_pred)
-    clf = SimClassifier('m')  # create classifier
-    clf.train()
-    all_pred, y_test_pred, _ = clf.predict(clf.X_test)
-    clf.eval(y_test_pred)
+    acc_list = []
+    modal = input("choose modality, c, m or c*m  ")
+    for i in range(1):
+        clf = SimClassifier(modal)  # create classifier
+        clf.train()
+        hsv_dict = clf.get_label_dict()
+        all_pred_val, predict_val = clf.predict([[111.52783964, 100.06458797,  26.69042316], [166.86111111, 134.04678363, 122.21418129], [ 71.74397032, 169.5868893,   58.91032777],
+        [17.85132297, 148.36539269,  80.93910122]])
+        for i in all_pred_val[3]:
+            print(f"prediction is {hsv_dict[i]}")
+        # all_pred, y_test_pred, _ = clf.predict(clf.X_test)
+        # acc_list.append(clf.eval(y_test_pred))
+    # print(f"overall average acc: {np.mean(acc_list)}")
+    # print(f"overall average std: {np.std(acc_list)}")
+
 
 if __name__ == "__main__":
     main()
