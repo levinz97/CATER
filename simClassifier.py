@@ -48,25 +48,28 @@ class Data_hsv():
 
 
 class SimClassifier():
-    def __init__(self):
+    def __init__(self, class_label):
+        self.class_label = class_label
         dataset = Data_hsv()
         self.label_dict = dataset.get_label_dict()
         self.models = []
+        self.trained_models = []
+        self.label_convert_lsit = {}
         # model construct here: self.models
 
     # The label selected for training can be color*material c*m or pure color c or pure material m
-    def class_choice(self, class_label):
-        if class_label == 'c*m':
+    def class_choice(self):
+        if self.class_label == 'c*m':
             return self.color_material
-        elif class_label == 'c':
+        elif self.class_label == 'c':
             return self.color
-        elif class_label == 'm':
+        elif self.class_label == 'm':
             return self.material
         else:
             # print('wrong input')
             return self.color_material
 
-    def dict_choice(self, class_label):  # Convert the output to the corresponding attribute
+    def dict_choice(self):  # Convert the output to the corresponding attribute
         material_list = ['rubber', 'metal']
         color_list = ['red', 'blue', 'cyan', 'green', 'gold', 'purple', 'yellow', 'gray', 'brown']
         material_dict = {0: 'rubber', 1: 'metal'}
@@ -81,11 +84,11 @@ class SimClassifier():
             for material in material_list:
                 color_material_dict[j] = [color, material]
                 j += 1
-        if class_label == 'c*m':
+        if self.class_label == 'c*m':
             return color_material_dict
-        elif class_label == 'c':
+        elif self.class_label == 'c':
             return color_dict
-        elif class_label == 'm':
+        elif self.class_label == 'm':
             return material_dict
         else:
             return color_material_dict
@@ -155,7 +158,7 @@ class SimClassifier():
                                alpha=1e-6, hidden_layer_sizes=(150), random_state=random_state)
         # self.models.append(model3) # for m
         model4 = MLPClassifier(solver='adam', activation='relu', learning_rate_init=1e-3, alpha=1e-3,
-                               hidden_layer_sizes=(20, 40, 60, 80), random_state=random_state)
+                               hidden_layer_sizes=(20, 40, 60, 80), max_iter=1000, random_state=random_state)
         self.models.append(model4)
         model5 = MLPClassifier(solver='sgd', activation='relu', learning_rate='adaptive', shuffle=False, alpha=1e-6,
                                hidden_layer_sizes=(150), batch_size=32, random_state=random_state)
@@ -164,31 +167,27 @@ class SimClassifier():
         # self.models.append(model6)
         assert len(self.models) > 0, "no model added!"
         print("[INFO] Successfully initialize a new model !")
-        return self.models
+        #return self.models
         # print("[INFO] Training the model…… ")
 
-    def model_train(self):
-        trained_model_list = []
+    def train(self):
+        feature, label = self.class_choice()()
+        self.label_convert_lsit = self.dict_choice()
+        self.data_initial(feature, label)
+        self.model_initial()
         for model in self.models:
             pipe = model
             pipe.fit(self.X_train, self.y_train)
-            trained_model_list.append(pipe)
+            self.trained_models.append(pipe)
         print("[INFO] Model training completed !")
-        return trained_model_list
 
-    def predict(self, trained_model, X_test):
-        # predict for each model
-        pipe = trained_model
-        y_test_pred = pipe.predict(X_test)
-        return y_test_pred  # pred for each model
-
-    def ensembleLearning(self, trained_model_list, X_test):
+    def ensembleLearning(self, X_test):
         # pipe = make_pipeline(StandardScaler(),model)
         y_test_pred = 0
         cnt = 0
-        for trained_model in trained_model_list:
+        for trained_model in self.trained_models:
             cnt += 1
-            y_p = self.predict(trained_model, X_test)  # 预测结果
+            y_p = trained_model.predict(X_test)  # 预测结果
             if isinstance(y_test_pred, int):
                 y_test_pred = y_p  # 如果是int 预测结果传给他
             else:
@@ -198,7 +197,7 @@ class SimClassifier():
                     #     y_test_pred = np.vstack((y_test_pred,y_p))
                 else:
                     print(
-                        f"[{'warning'.upper()}] model Failed:\n{m} collapses\n with output{y_p}")
+                        f"[{'warning'.upper()}] model Failed:\n{trained_model} collapses\n with output{y_p}")
         y_test_pred = y_test_pred.astype(np.uint8)
         all_pred = y_test_pred
         print(y_test_pred)
@@ -207,8 +206,14 @@ class SimClassifier():
             y_test_pred, _ = stats.mode(y_test_pred, axis=0)
             y_test_pred = y_test_pred[0]
         print(y_test_pred)
-        print(f"GT:\n {self.y_test}")
+        if X_test.all() == self.X_test.all():
+            print(f"GT:\n {self.y_test}")
         return all_pred, y_test_pred  # pred for ensembleLearning models
+
+    def predict(self, X_test):  # X_test: input of hsv:list
+        all_pred, y_test_pred = self.ensembleLearning(X_test)
+        return all_pred, y_test_pred, self.label_convert_lsit
+        # pred for each model
 
     def eval(self, y_test_pred):
         # TODO evaluate model accuracy
@@ -226,22 +231,25 @@ class SimClassifier():
 
 
 def main():
-    warnings.filterwarnings('ignore')
-    class_label = input('input your class label: c*m or c or m   ')
-    simc = SimClassifier()
-    label = simc.class_choice(class_label)
-    feature, label = label()
-    attribut_dict = simc.dict_choice(class_label)  # can be used later for attributes search
-    simc.data_initial(feature, label)
-    simc.model_initial()
-    trained_model_list = simc.model_train()
-    _, y_test_pred = simc.ensembleLearning(trained_model_list, simc.X_test)
-    simc.eval(y_test_pred)
-    # X_test input your data hsv value
-    # all_pred, y_test_pred = simc.ensembleLearning(trained_model_list, X_test)
-    # print(all_pred)
-    # print(y_test_pred)
-
+    # warnings.filterwarnings('ignore')
+    # class_label = input('input your class label: c*m or c or m   ')
+    # simc = SimClassifier()
+    # label = simc.class_choice(class_label)
+    # feature, label = label()
+    # attribut_dict = simc.dict_choice(class_label)  # can be used later for attributes search
+    # simc.data_initial(feature, label)
+    # simc.model_initial()
+    # trained_model_list = simc.model_train()
+    # _, y_test_pred = simc.ensembleLearning(trained_model_list, simc.X_test)
+    # simc.eval(y_test_pred)
+    # # X_test input your data hsv value
+    # # all_pred, y_test_pred = simc.ensembleLearning(trained_model_list, X_test)
+    # # print(all_pred)
+    # # print(y_test_pred)
+    clf = SimClassifier('m')  # create classifier
+    clf.train()
+    all_pred, y_test_pred, _ = clf.predict(clf.X_test)
+    clf.eval(y_test_pred)
 
 if __name__ == "__main__":
     main()
