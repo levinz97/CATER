@@ -18,7 +18,7 @@ class Data_hsv():
 
     # The statistical color and material information is included in the hsv.json file
     def get_label_dict(self):
-        input_path = './hsv.json'
+        input_path = './hsv'
         with open(input_path, 'r', encoding='UTF-8') as input_file:
             dictionary = json.load(input_file)
             input_file.close()
@@ -54,7 +54,7 @@ class SimClassifier():
         self.label_dict = dataset.get_label_dict()
         self.models = []
         self.trained_models = []
-        self.label_convert_lsit = {}
+        self.label_convert_dict = {}
         # model construct here: self.models
 
     # The label selected for training can be color*material c*m or pure color c or pure material m
@@ -172,7 +172,7 @@ class SimClassifier():
 
     def train(self):
         feature, label = self.class_choice()()
-        self.label_convert_lsit = self.dict_choice()
+        self.label_convert_dict = self.dict_choice()
         self.data_initial(feature, label)
         self.model_initial()
         for model in self.models:
@@ -212,26 +212,48 @@ class SimClassifier():
 
     def predict(self, X_test):  # X_test: input of hsv:list
         all_pred, y_test_pred = self.ensembleLearning(X_test)
-        return all_pred, y_test_pred, self.label_convert_lsit
+        return all_pred, y_test_pred, self.label_convert_dict
         # pred for each model
 
-    def eval(self, y_test_pred):
-        # TODO evaluate model accuracy
-        ov_acc = metrics.accuracy_score(y_test_pred, self.y_test)
+    def eval(self, y_test_pred, y_test):
+        # evaluate model accuracy
+        ov_acc = metrics.accuracy_score(y_test_pred, y_test)
         # ov_acc = pipe.score(X_test, y_test)
         print("overall accuracy: %f" % (ov_acc))
         print("===========================================")
         acc_for_each_class = metrics.precision_score(
-            self.y_test, y_test_pred, average=None)
+            y_test, y_test_pred, average=None)
         print("acc_for_each_class:\n", acc_for_each_class)
         print("===========================================")
         avg_acc = np.mean(acc_for_each_class)
         print("average accuracy:%f" % (avg_acc))
         return ov_acc
 
+    def convert_m(self, data):
+        material = np.copy(data)
+        for i in range(len(data)):
+            if data[i] % 2 == 0:
+                material[i] = 1
+            else:
+                material[i] = 0
+        return material
+
+    def convert_c(self, data):
+        color = np.copy(data)
+        convert_dict = {}
+        k = 1
+        for i in range(1, 19):
+            convert_dict[i] = k
+            if i % 2 == 0:
+                k += 1
+        print('检测1')
+        print(convert_dict)
+        for i in range(len(data)):
+            color[i] = int(convert_dict[data[i]])
+        return color
 
 def main():
-    # warnings.filterwarnings('ignore')
+    warnings.filterwarnings('ignore')
     # class_label = input('input your class label: c*m or c or m   ')
     # simc = SimClassifier()
     # label = simc.class_choice(class_label)
@@ -246,10 +268,20 @@ def main():
     # # all_pred, y_test_pred = simc.ensembleLearning(trained_model_list, X_test)
     # # print(all_pred)
     # # print(y_test_pred)
-    clf = SimClassifier('m')  # create classifier
+    clf = SimClassifier('c*m')  # create classifier
     clf.train()
     all_pred, y_test_pred, _ = clf.predict(clf.X_test)
-    clf.eval(y_test_pred)
+    print("---------------c*m------------------")
+    clf.eval(y_test_pred, clf.y_test)
+    y_test_pred_m = clf.convert_m(y_test_pred)
+    y_test_m = clf.convert_m(clf.y_test)
+    print("---------------m------------------")
+    clf.eval(y_test_pred_m, y_test_m)
+    y_test_pred_c = clf.convert_c(y_test_pred)
+    y_test_c = clf.convert_c(clf.y_test)
+    print("---------------c------------------")
+    clf.eval(y_test_pred_c, y_test_c)
+    print('no improvement')
 
 if __name__ == "__main__":
     main()
