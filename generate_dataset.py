@@ -59,16 +59,17 @@ class generateDataset:
                                       bbox = bbox_list,
                                       contours = contours,
                                       size = size_list)}
-
+      
         cnt = 0
         for c,b in zip(single_dict[filenum]["contours"], single_dict[filenum]["bbox"]):
             print( single_dict[filenum]["color_material"][cnt])
             print( single_dict[filenum]["size"][cnt])
             b = np.array(b).reshape(1, -1)
             print(b)
-            self.pd._drawBboxOnImg(raw_img, b)
-            dispImg("raw",raw_img)
-            # self.pd._dispAllContours(raw_img,c,b)
+            screen = raw_img.copy()
+            # self.pd._drawBboxOnImg(screen, b)
+            # dispImg("raw",screen)
+            self.pd._dispAllContours(screen,[c],b)
             cnt += 1
         
         # print(single_dict[filename]["color_material"])
