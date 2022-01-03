@@ -233,7 +233,7 @@ class PrepareData:
         MIN_AREA_THRESH = 60
 
         # if area of regions above threshold, need scecond run of GrabCut on it
-        MAX_AREA_THRESH = 11000
+        MAX_AREA_THRESH = 10000
         SOFT_AREA_THRESH = 800
         refine_area_list = []
         # convert to single channel, required by cv2.findContours()
@@ -280,6 +280,10 @@ class PrepareData:
                 print(f'wrong segmentation, too large, now total contours = {len(contours)}')
                 continue
             else:
+                _x,_y,_w,_h = bbox
+                # expand the bbox a little to ensure enclosure of object 
+                scale = 1.1
+                bbox = [int(i) for i in [_x - 0.5*(scale-1)*_w, _y - 0.5*(scale-1)*_h, scale*_w, scale*_h]]
                 bbox_list.append(bbox)
 
             if self.display_process:
