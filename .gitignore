@@ -1,3 +1,12 @@
 raw_data/
 *.png
 jupyter-notebook/
+one_hot_key.py
+anno_28.11/
+.vscode/
+__pycache__/
+*mouse.py
+hsv.json
+label_new_setting1.json
+detectron2
+output/
