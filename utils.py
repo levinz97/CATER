@@ -5,9 +5,9 @@ import numpy as np
 import matplotlib
 
 # replace opencv waitKey() to avoid error due to pyqt5 
-def dispImg(str,img, kill_window=True, on_press=None):
+def dispImg(str,img, kill_window=True, on_press=None, move_dist=[400, 200]):
     fig = plt.figure()
-    move_figure(fig, 400, 200)
+    move_figure(fig, *move_dist)
     plt.imshow(img)
     plt.title(str)
     if on_press is None:
