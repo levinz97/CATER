@@ -88,7 +88,10 @@ class SizeClassifier:
         dataset_size = Data_size()
         self.feature, self.label = dataset_size.feature_label()
         self.model_list = []
-        self.laber_convert_size_dict = {'s': 0, 'm': 1, 'l': 2}
+        self.label_convert_size_dict = {0: 'small', 1: 'medium', 2: 'large'}
+
+    def get_label_size_dict(self):
+        return self.label_convert_size_dict
 
     def train(self):
         for i in range(10):
