@@ -41,15 +41,17 @@ class generateDataset:
         hsv_list = []
         center_list = []
         size_list = []
+        area_list = []
         for attr in attr_list:
-            if attr[0] > 1000:
+            area_list.append(attr[0]) # add area
+            if attr[0] > 1000:        # add size
                 size_list.append("large")
             elif attr[0] < 400:
                 size_list.append("small")
             else:
                 size_list.append("medium")
-            hsv_list.append(attr[1])
-            center_list.append(attr[3])
+            hsv_list.append(attr[1])  # add HSV
+            center_list.append(attr[3]) # add center location [x,y]
         all_pred_val, predict_val = self.clf.predict(hsv_list)
         for val in predict_val:
             attr_val.append(self.label_convert_dict[val])
@@ -112,17 +114,22 @@ class generateDataset:
             cnt += 1
         assert len(keep_idx) > 0, "no annotations for this image"
         assert len(all_shape_list) == len(keep_idx), "annotations of shape do not correspond with other annos!"
+
+        contours = list(np.array(contours, dtype=object)[keep_idx])
+        list_contours = [ list(i.reshape(-1,)) for i in contours]
         single_dict = {filenum: dict(
                                 shape = all_shape_list,
+                                area = area_list,
                                 color_material = list(np.array(attr_val)[keep_idx]), 
                                 all_prediction = list(np.array(all_pred_val)[keep_idx]),
                                 center = list(np.array(center_list)[keep_idx]),
                                 bbox = list(np.array(bbox_list)[keep_idx]),
-                                contours = list(np.array(contours, dtype=object)[keep_idx]),
+                                contours = list_contours,
                                 size = list(np.array(size_list)[keep_idx]))}
-        self.pd._dispAllContours(raw_img, single_dict[filenum]['contours'], single_dict[filenum]['bbox'])
+        self.pd._dispAllContours(raw_img, contours, single_dict[filenum]['bbox'])
 
         # print(single_dict[filename]["color_material"])
+        print(single_dict[filenum]['contours'])
         return single_dict
 
 
