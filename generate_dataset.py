@@ -1,6 +1,7 @@
 from numpy.random.mtrand import f
 from prepare_data import PrepareData
 from simClassifier import SimClassifier
+from size_pred import SizeClassifier
 from utils import dispImg
 
 import numpy as np
@@ -16,6 +17,10 @@ class generateDataset:
         self.clf = SimClassifier(class_label="c*m")
         self.clf.train()
         self.label_convert_dict = self.clf.get_label_dict()
+        self.clf_size =SizeClassifier()
+        self.clf_size.train()
+        self.label_convert_size_dict = self.clf_size.get_label_size_dict()
+
         
     def getImage(self):
         i = np.random.randint(0,5501)
@@ -39,16 +44,20 @@ class generateDataset:
         attr_val = []
         hsv_list = []
         center_list = []
+        attr_val_size = []
         size_list = []
         for attr in attr_list:
-            if attr[0] > 1000:
-                size_list.append("large")
-            elif attr[0] < 400:
-                size_list.append("small")
-            else:
-                size_list.append("medium")
+            list1 = []
+            list1.append(attr[0])
+            list1.append(attr[4])
+            list1.extend(attr[3])
+            size_list.append(list1)
             hsv_list.append(attr[1])
             center_list.append(attr[3])
+        all_pred_val_size, predict_val_size = self.clf_size.size_pred(size_list)
+        for val in predict_val_size:
+            attr_val_size.append(self.label_convert_size_dict[val])
+
         all_pred_val, predict_val = self.clf.predict(hsv_list)
         for val in predict_val:
             attr_val.append(self.label_convert_dict[val])
@@ -58,7 +67,7 @@ class generateDataset:
                                       center = center_list,
                                       bbox = bbox_list,
                                       contours = contours,
-                                      size = size_list)}
+                                      size = attr_val_size)}
 
         cnt = 0
         for c,b in zip(single_dict[filenum]["contours"], single_dict[filenum]["bbox"]):
