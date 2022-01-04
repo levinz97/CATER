@@ -39,7 +39,7 @@ class Data_size:
             shape.extend(data_dict[name]['shape'])
             size.extend(data_dict[name]['size'])
 
-        #转换为数字
+        #change to number label
         shape_dict = {}
         size_dict = {}
 
@@ -52,13 +52,13 @@ class Data_size:
         for k in size_list:
             size_dict[k] = size_cnt
             size_cnt += 1
+        print(size_dict)
 
         for i in range(len(shape)):
             shape[i] = shape_dict[shape[i]]
 
         for i in range(len(size)):
             size[i] = size_dict[size[i]]
-        #print(size)
 
         area_length_feature = []
         for i in range(len(area)):
@@ -88,6 +88,7 @@ class SizeClassifier:
         dataset_size = Data_size()
         self.feature, self.label = dataset_size.feature_label()
         self.model_list = []
+        self.laber_convert_size_dict = {'s': 0, 'm': 1, 'l': 2}
 
     def train(self):
         for i in range(10):
