@@ -6,15 +6,24 @@ from non_maximum_suppression import non_max_suppression
 from utils import dispImg, getRectFromUserSelect
 import os
 from simClassifier import SimClassifier
+from statistic import Statistic
+import json
+
 class PrepareData:
     def __init__(self, need_visualization=True):
-        self.display_process = False
-        self.display_result =  True
+        self.display_process = True
+        self.display_result = True
         self.display_selectiveSearch = False
         self.display_subregionGrabCut = False
-        self.allow_user_select_rect = True
+        self.allow_user_select_rect =  True
         self.allow_iterative_refinement = True
         # self.cls = SimClassifier()
+
+        # add by Xuejin
+        self.data_statis = Statistic()
+        # add by Xuejin
+
+
     def save_image(self):
         vidcap = cv2.VideoCapture("./raw_data/all_action_camera_move/videos/CATER_new_005748.avi")
         success, image = vidcap.read()
@@ -94,11 +103,11 @@ class PrepareData:
             self._dispAllContours(raw_img, contours, bbox_list)
 
         print("\n","<<"*50,f"Final Number of detected contours: {len(contours)}","<<"*10)
-        
+
         return contours, bbox_list
 
     def presegmentImg(self, img,type='BGR', method = 'grabcut'): 
-        'try to segment image with or different conventional / unsupervised approach'   
+        'try to segment image with or different conventional / unsupervised approach'
         if self.display_process:
             dispImg("origin", img, kill_window=False )
         res_img = []
@@ -158,7 +167,7 @@ class PrepareData:
             res_img += diff
             if self.display_subregionGrabCut:
                 dispImg("resimg2", res_img2, kill_window=False)
-                dispImg("diff", diff, kill_window=False)
+                #dispImg("diff", diff, kill_window=False) 注释掉了
                 dispImg("resimg", res_img)
             return res_img
         
@@ -196,7 +205,7 @@ class PrepareData:
             screen = img.copy()
             _x,_y,_w,_h = rect
             cv2.rectangle(screen, (_x,_y),(_x+_w,_y+_h),255,thickness=1)
-            dispImg("in_grabCut", screen)
+            #dispImg("in_grabCut", screen) 注释
         mask = cv2.Canny(img,100,200)
         _, mask = cv2.threshold(mask, 10, 1, 0)
         # dispImg("canny",mask,kill_window=False)
@@ -206,12 +215,14 @@ class PrepareData:
 
         cv2.grabCut(img,mask,rect,bgd,fgd,5,cv2.GC_INIT_WITH_RECT)
         if self.display_process:
-            dispImg("new_mask",mask, kill_window=False)
+            #dispImg("new_mask",mask, kill_window=False) 注释
+            pass
         cv2.grabCut(img,mask,rect,bgd,fgd,15,cv2.GC_INIT_WITH_MASK and cv2.GC_INIT_WITH_RECT)
         mask2 = np.where((mask==2) | (mask==0),0,1).astype('uint8') # mask to set all bgd and possible bgd to 0.
         res_img = img * mask2[:,:,np.newaxis]
         if self.display_process:
-            dispImg("res0", res_img,kill_window=False)
+            #dispImg("res0", res_img,kill_window=False) 注释
+            pass
         # img = cv2.GaussianBlur(img,(5,5),0)
         # first erosion then dilation to remove some bright holes after segmentation
         tmp_img = np.copy(res_img)
@@ -223,7 +234,8 @@ class PrepareData:
         mask_res_img = np.where(res_img != 0, 255, 0).astype('uint8')
         res_eval = cv2.bitwise_xor(mask_res_img, mask_tmp_img)
         if self.display_process:
-            dispImg("difference after opening", res_eval, kill_window=False)
+            #dispImg("difference after opening", res_eval, kill_window=False) 注释
+            pass
         # res_img = cv2.ximgproc.anisotropicDiffusion(res_img,0.1,100,100)
 
         return res_img
@@ -291,14 +303,15 @@ class PrepareData:
             Moments = cv2.moments(item)
             center = [int(Moments['m10']/Moments['m00']), int(Moments['m01']/Moments['m00'])]
             print(f'center of contour is {center}')
-  
+            self.data_statis.data_log(avg_hsv, avg_rgb, area, arc_len, center)
+            print(self.data_statis.label_dict)
             
             # display the contours
             if self.display_process:
                 screen = np.zeros(img.shape[0:-1])
                 boundary = cv2.drawContours(screen,contours,cnt,255,1)
                 boundary = np.array(boundary,np.int32)
-                dispImg(f'{cnt}',boundary,kill_window=False)
+                #dispImg(f'{cnt}',boundary,kill_window=False) 注释
             if disp_contour_val:
                 for i in item:
                     contour_x,contour_y = i[0]
@@ -378,30 +391,49 @@ def main():
 
     # if input("save image from videos?\n") == 'y' :
     #     save_image()
-    cv2.setUseOptimized(True)
+    cv2.setUseOptimized(True) # 优化opencv
     cv2.setNumThreads(4)
-    dirname = os.path.join('.','raw_data','first_frame', 'all_actions_first_frame')
-    start = time()
+    #dirname = os.path.join('D:','Das dritte Semester','raw_data','HCI','all_actions_first_frame')
+    dirname = r'D:\Das dritte Semester\HCI\all_actions_first_frame'
+    #start = time() 注释掉了
     need_visualization = False
-    for i in range(0,31):
-        i = np.random.randint(0,5501)
+    datalist = []
+    for i in range(0, 100):
+        print('the number of image', i)
+        i = np.random.randint(0,  5501)
         # filename = 'frame{}.png'.format(str(i*10))
         filenum = str(i)
         # filenum = "005192"
         while len(filenum) < 6:
-            filenum = '0'+ filenum
+            filenum = '0' + filenum
         filename = "CATER_new_{}.png".format(filenum)
         filename = os.path.join(dirname, filename)
         if not os.path.isfile(filename):
             continue
         # filename = 'test.png' 
-        print('\n',5*'>>>>>>>>','open file: '+filename.format(str(i*10)))
+        print('\n', 5*'>>>>>>>>','open file: '+filename.format(str(i*10)))
         img = cv2.imread(filename.format(str(i*10)))
         raw_img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
         # dispImg("raw",raw_img)
 
         # img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
         # selectiveSearch(img)
+
+        # add by Xuejin
+
+        input_path = 'D:/Das dritte Semester/HCI/all_actions/scenes/scenes/CATER_new_{}.json'.format(filenum)
+        print(input_path)
+        try:
+            with open(input_path, 'r', encoding='UTF-8') as input_file:
+                dictionary = json.load(input_file)
+                input_file.close()
+            all_objects_list = dictionary['objects']
+            for i in range(len(all_objects_list)):
+                print(all_objects_list[i]['color'] + '_' + all_objects_list[i]['shape'] + '_' + all_objects_list[i][
+                    'material'] + '_' + all_objects_list[i]['size'] + ' ', end=';')
+        except FileNotFoundError:
+            continue
+        #add by Xuejin
 
         pd = PrepareData(need_visualization)
         r"TODO:maybe use selective search as initial region for grabcut?"
@@ -419,9 +451,22 @@ def main():
 
         contours, bbox_list = pd.getContoursWithBbox(raw_img)
         # assert(len(contours)==len(bbox_list),"size not compatible")
+
+        # add by Xuejin
+        b = pd.data_statis.data_store(filenum)
+        datalist.append(b)
+        a = input('if continue the task? y or n ')
+        if a == 'n':
+            print('task stop')
+            data_json1 = json.dumps(datalist)
+            with open('./data_2', 'w', encoding='UTF-8') as output_file:
+                output_file.write(data_json1)
+                output_file.close()
+            break
+        # add by Xuejin
         
-    end = time()
-    print(f'total time = {end-start}')
+    #end = time() 注释掉了
+    #print(f'total time = {end-start}')
 
 if __name__ == "__main__":
     main()
