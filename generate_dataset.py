@@ -7,8 +7,7 @@ import numpy as np
 import os
 import cv2
 
-#dirname = os.path.join('.','raw_data','first_frame', 'all_actions_first_frame')
-dirname = r'D:\Das dritte Semester\HCI\all_actions_first_frame'
+dirname = os.path.join('.','raw_data','first_frame', 'all_actions_first_frame')
 class generateDataset:
     def __init__(self, dirname:str):
         self.dirname = dirname
