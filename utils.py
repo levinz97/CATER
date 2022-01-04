@@ -11,7 +11,9 @@ def dispImg(str,img, kill_window=True):
     plt.imshow(img)
     plt.title(str)
     plt.show(block=False)
-    plt.waitforbuttonpress(0)
+    while True:
+        if plt.waitforbuttonpress(0):
+            break
     if kill_window:
         plt.close('all')
     # cv2.imshow(str,img)
