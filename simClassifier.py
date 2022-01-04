@@ -156,10 +156,10 @@ class SimClassifier:
         model2 = MLPClassifier(solver='lbfgs', alpha=1e-6, hidden_layer_sizes=(5, 18, 10, 5), random_state=random_state)
         # self.models.append(model2)
         model3 = MLPClassifier(solver='sgd', activation='relu', learning_rate_init=0.0005, learning_rate='adaptive',
-                               alpha=1e-6, hidden_layer_sizes=(150),max_iter=1000, random_state=random_state)
+                               alpha=1e-6, hidden_layer_sizes=(150),max_iter=1500, random_state=random_state)
         self.hsvmodels.append(model3) # for m
         model4 = MLPClassifier(solver='adam', activation='relu', learning_rate_init=1e-3, alpha=1e-3,
-                               hidden_layer_sizes=(20, 40, 60, 80), max_iter=1000, random_state=random_state)
+                               hidden_layer_sizes=(20, 40, 60, 80), max_iter=1500, random_state=random_state)
         self.hsvmodels.append(model4)
         model5 = MLPClassifier(solver='sgd', activation='relu', learning_rate='adaptive', shuffle=False, alpha=1e-6,
                                hidden_layer_sizes=(150), batch_size=32, random_state=random_state)
@@ -180,7 +180,7 @@ class SimClassifier:
             model.fit(x_train, y_train)
             y_pred = model.predict(x_test)
             acc = metrics.accuracy_score(y_pred, y_test)
-            print("accuracy：", acc)
+            #print("accuracy：", acc)
             if acc > 0.9:
                 self.sizemodels.append(model)
 
