@@ -296,7 +296,7 @@ class PrepareData:
             center = [int(Moments['m10']/Moments['m00']), int(Moments['m01']/Moments['m00'])]
             print(f'center of contour is {center}')
               
-            attr = list((area, avg_hsv, avg_rgb, center))
+            attr = list((area, avg_hsv, avg_rgb, center, arc_len))
             attr_list.append(attr)
 
             # display the contours
