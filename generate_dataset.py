@@ -1,7 +1,8 @@
+from matplotlib import pyplot as plt
 from numpy.random.mtrand import f
 from prepare_data import PrepareData
 from simClassifier import SimClassifier
-from utils import dispImg
+from utils import dispImg, move_figure
 
 import numpy as np
 import os
@@ -53,24 +54,43 @@ class generateDataset:
         for val in predict_val:
             attr_val.append(self.label_convert_dict[val])
 
-        single_dict = {filenum: dict(color_material = attr_val, 
-                                      all_prediction = all_pred_val,
-                                      center = center_list,
-                                      bbox = bbox_list,
-                                      contours = contours,
-                                      size = size_list)}
-
+        keep_idx = []
         cnt = 0
-        for c,b in zip(single_dict[filenum]["contours"], single_dict[filenum]["bbox"]):
-            print( single_dict[filenum]["color_material"][cnt])
-            print( single_dict[filenum]["size"][cnt])
+        def press(event):
+            if event.key == 'c':
+                print("clear all val in keep")
+                keep.clear()
+            if event.key == 'r':
+                print(f"save {cnt} annotation")
+                keep.append(1)
+            if event.key == 'd':
+                print(f"delete {cnt} annotation")
+                keep.append(-1)
+            if event.key == 'v':
+                print(f"annotations to be kept = {True if np.sum(keep) > 0 else False}")
+        for c,b in zip(contours, bbox_list):
+            keep = [True]
+            print(attr_val[cnt])
+            print(size_list[cnt])
             b = np.array(b).reshape(1, -1)
             print(b)
-            self.pd._drawBboxOnImg(raw_img, b)
-            dispImg("raw",raw_img)
-            # self.pd._dispAllContours(raw_img,c,b)
+            screen = raw_img.copy()
+            # self.pd._drawBboxOnImg(screen, b)
+            # dispImg("raw",screen)
+            self.pd._dispAllContours(screen, [c], b, on_press=press)
+            if np.sum(keep) > 0:
+                print("annotation saved")
+                keep_idx.append(cnt)
             cnt += 1
-        
+        assert len(keep_idx) > 0, "no annotations for this image"
+        single_dict = {filenum: dict(color_material = list(np.array(attr_val)[keep_idx]), 
+                                all_prediction = list(np.array(all_pred_val)[keep_idx]),
+                                center = list(np.array(center_list)[keep_idx]),
+                                bbox = list(np.array(bbox_list)[keep_idx]),
+                                contours = list(np.array(contours, dtype=object)[keep_idx]),
+                                size = list(np.array(size_list)[keep_idx]))}
+        self.pd._dispAllContours(raw_img, single_dict[filenum]['contours'], single_dict[filenum]['bbox'])
+
         # print(single_dict[filename]["color_material"])
         return single_dict
 
@@ -79,4 +99,5 @@ if __name__ == "__main__":
     gd = generateDataset(dirname)
     for i in range(10):
         d = gd.getDict()
+        print(d)
     # print(d)
