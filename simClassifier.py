@@ -18,7 +18,7 @@ class Data_hsv():
 
     # The statistical color and material information is included in the hsv.json file
     def get_label_dict(self):
-        input_path = './hsv'
+        input_path = './data_final'
         with open(input_path, 'r', encoding='UTF-8') as input_file:
             dictionary = json.load(input_file)
             input_file.close()
@@ -135,7 +135,7 @@ class SimClassifier():
         # test_size is the proportion of the training set and can be modified
         feature = np.array(feature)
         label = np.array(label)
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(feature, label, test_size=0.2,
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(feature, label, test_size=0.1,
                                                                                 random_state=0)
         # Kernel function can choose 'rbf' Gaussian kernel or 'poly' polynomial kernel
         # Result of 'linear' kernel is very poor
@@ -268,7 +268,7 @@ def main():
     # # all_pred, y_test_pred = simc.ensembleLearning(trained_model_list, X_test)
     # # print(all_pred)
     # # print(y_test_pred)
-    clf = SimClassifier('c*m')  # create classifier
+    clf = SimClassifier('c')  # create classifier
     clf.train()
     all_pred, y_test_pred, _ = clf.predict(clf.X_test)
     print("---------------c*m------------------")
