@@ -365,7 +365,7 @@ class PrepareData:
     def _isInColorRange(self, hue: float, saturation):
         "check the detected object is single object or mixed objects by color"
         red   = (121, 133)
-        blue  = (7, 18)
+        blue  = (7, 20)
         cyan  = (29, 36)
         green = (67, 88)
         gold  = (95, 105)
