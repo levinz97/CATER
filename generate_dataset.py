@@ -1,14 +1,14 @@
 from numpy.random.mtrand import f
 from prepare_data import PrepareData
 from simClassifier import SimClassifier
-from size_pred import SizeClassifier
 from utils import dispImg
 
 import numpy as np
 import os
 import cv2
 
-dirname = os.path.join('.','raw_data','first_frame', 'all_actions_first_frame')
+#dirname = os.path.join('.','raw_data','first_frame', 'all_actions_first_frame')
+dirname = r'D:\Das dritte Semester\HCI\all_actions_first_frame'
 class generateDataset:
     def __init__(self, dirname:str):
         self.dirname = dirname
@@ -16,10 +16,9 @@ class generateDataset:
         # train a simple classifier for color, material prediction
         self.clf = SimClassifier(class_label="c*m")
         self.clf.train()
-        self.label_convert_dict = self.clf.get_label_dict()
-        self.clf_size =SizeClassifier()
-        self.clf_size.train()
-        self.label_convert_size_dict = self.clf_size.get_label_size_dict()
+        self.label_convert_hsv_dict = self.clf.get_label_hsv_dict()
+        self.label_convert_size_dict = self.clf.get_label_size_dict()
+
 
         
     def getImage(self):
@@ -41,10 +40,10 @@ class generateDataset:
     def getDict(self):
         raw_img, filenum = self.getImage()
         contours, bbox_list, attr_list = self.pd.getContoursWithBbox(raw_img)
-        attr_val = []
+        attr_val_hsv = []
+        attr_val_size = []
         hsv_list = []
         center_list = []
-        attr_val_size = []
         size_list = []
         for attr in attr_list:
             list1 = []
@@ -54,16 +53,16 @@ class generateDataset:
             size_list.append(list1)
             hsv_list.append(attr[1])
             center_list.append(attr[3])
-        all_pred_val_size, predict_val_size = self.clf_size.size_pred(size_list)
+        all_pred_val_size, predict_val_size = self.clf.predict_size(size_list)
         for val in predict_val_size:
             attr_val_size.append(self.label_convert_size_dict[val])
 
-        all_pred_val, predict_val = self.clf.predict(hsv_list)
-        for val in predict_val:
-            attr_val.append(self.label_convert_dict[val])
+        all_pred_val_hsv, predict_val_hsv = self.clf.predict_hsv(hsv_list)
+        for val in predict_val_hsv:
+            attr_val_hsv.append(self.label_convert_hsv_dict[val])
 
-        single_dict = {filenum: dict(color_material = attr_val, 
-                                      all_prediction = all_pred_val,
+        single_dict = {filenum: dict(color_material = attr_val_hsv,
+                                      all_prediction = all_pred_val_hsv,
                                       center = center_list,
                                       bbox = bbox_list,
                                       contours = contours,
