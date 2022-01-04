@@ -347,14 +347,14 @@ class PrepareData:
         # attr_list: list [area, avg_hsv, avg_rgb, center of contour]
         return contours, refine_area_list, bbox_list, attr_list
 
-    def _dispAllContours(self, img, contours, bbox_list, close_all_windows_afterwards = True):
+    def _dispAllContours(self, img, contours, bbox_list, close_all_windows_afterwards = True, on_press=None):
         screen = np.zeros(img.shape[0:-1])
         all_shapes = cv2.drawContours(screen,contours,-1,255,cv2.FILLED) # disp shape: cv2.FILLED, disp contour: 1
         shape_mask = np.array(all_shapes,dtype=np.uint8)
         crop_shape = cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
         crop_shape = self._drawBboxOnImg(crop_shape, bbox_list)
 
-        dispImg("all cropped img",crop_shape,kill_window=close_all_windows_afterwards)
+        dispImg("all cropped img",crop_shape,kill_window=close_all_windows_afterwards, on_press=on_press)
         print(f'number of valid contours is {len(contours)}')
 
     def _drawBboxOnImg(self, img, bbox_list):
