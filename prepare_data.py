@@ -233,7 +233,7 @@ class PrepareData:
         MIN_AREA_THRESH = 60
 
         # if area of regions above threshold, need scecond run of GrabCut on it
-        MAX_AREA_THRESH = 11000
+        MAX_AREA_THRESH = 10000
         SOFT_AREA_THRESH = 800
         refine_area_list = []
         # convert to single channel, required by cv2.findContours()
@@ -280,6 +280,10 @@ class PrepareData:
                 print(f'wrong segmentation, too large, now total contours = {len(contours)}')
                 continue
             else:
+                _x,_y,_w,_h = bbox
+                # expand the bbox a little to ensure enclosure of object 
+                scale = 1.1
+                bbox = [int(i) for i in [_x - 0.5*(scale-1)*_w, _y - 0.5*(scale-1)*_h, scale*_w, scale*_h]]
                 bbox_list.append(bbox)
 
             if self.display_process:
@@ -292,7 +296,7 @@ class PrepareData:
             center = [int(Moments['m10']/Moments['m00']), int(Moments['m01']/Moments['m00'])]
             print(f'center of contour is {center}')
               
-            attr = list((area, avg_hsv, avg_rgb, center))
+            attr = list((area, avg_hsv, avg_rgb, center, arc_len))
             attr_list.append(attr)
 
             # display the contours
@@ -343,14 +347,14 @@ class PrepareData:
         # attr_list: list [area, avg_hsv, avg_rgb, center of contour]
         return contours, refine_area_list, bbox_list, attr_list
 
-    def _dispAllContours(self, img, contours, bbox_list, close_all_windows_afterwards = True):
+    def _dispAllContours(self, img, contours, bbox_list, close_all_windows_afterwards = True, on_press=None):
         screen = np.zeros(img.shape[0:-1])
         all_shapes = cv2.drawContours(screen,contours,-1,255,cv2.FILLED) # disp shape: cv2.FILLED, disp contour: 1
         shape_mask = np.array(all_shapes,dtype=np.uint8)
         crop_shape = cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
         crop_shape = self._drawBboxOnImg(crop_shape, bbox_list)
 
-        dispImg("all cropped img",crop_shape,kill_window=close_all_windows_afterwards)
+        dispImg("all cropped img",crop_shape,kill_window=close_all_windows_afterwards, on_press=on_press)
         print(f'number of valid contours is {len(contours)}')
 
     def _drawBboxOnImg(self, img, bbox_list):
@@ -361,7 +365,7 @@ class PrepareData:
     def _isInColorRange(self, hue: float, saturation):
         "check the detected object is single object or mixed objects by color"
         red   = (121, 133)
-        blue  = (7, 18)
+        blue  = (7, 20)
         cyan  = (29, 36)
         green = (67, 88)
         gold  = (95, 105)
