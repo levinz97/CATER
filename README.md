@@ -9,7 +9,7 @@ sh ./connect_server.sh
 
 ```
 .
-├── *detectron2 -> /home/levinz/Code/detectron2/ 
+├── *detectron2 -> /<Your Dir For Detectron2>/ 
 ├── jupyter-notebook
 ├── *output
 ├── *dataset
@@ -27,7 +27,7 @@ sh ./connect_server.sh
 │   │   └── images
 │   │       └── image
 │   ├── first_frame
-│   │   └── all_actions_first_frame -> /home/levinz/Downloads/all_actions_first_frame/
+│   │   └── all_actions_first_frame
 │   └── mydata
 ├── scripts
 └── test
