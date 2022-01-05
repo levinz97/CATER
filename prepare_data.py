@@ -5,6 +5,7 @@ from time import time
 from non_maximum_suppression import non_max_suppression
 from utils import dispImg, getRectFromUserSelect
 import os
+
 class PrepareData:
     def __init__(self, need_visualization=True):
         self.display_process = need_visualization
@@ -228,7 +229,7 @@ class PrepareData:
         return res_img
 
     def getContoursFromSegmentedImg(self, img):
-        disp_contour_val = False
+        disp_contour_val = True
         MIN_ARC_LEN_THRESH = 20
         MIN_AREA_THRESH = 60
 
@@ -296,7 +297,7 @@ class PrepareData:
             center = [int(Moments['m10']/Moments['m00']), int(Moments['m01']/Moments['m00'])]
             print(f'center of contour is {center}')
               
-            attr = list((area, avg_hsv, avg_rgb, center, arc_len))
+            attr = list((area, avg_hsv, avg_rgb, center))
             attr_list.append(attr)
 
             # display the contours
@@ -365,7 +366,7 @@ class PrepareData:
     def _isInColorRange(self, hue: float, saturation):
         "check the detected object is single object or mixed objects by color"
         red   = (121, 133)
-        blue  = (7, 20)
+        blue  = (7, 18)
         cyan  = (29, 36)
         green = (67, 88)
         gold  = (95, 105)
@@ -417,14 +418,12 @@ def main():
     #     save_image()
     cv2.setUseOptimized(True)
     cv2.setNumThreads(4)
-    dirname = os.path.join('.','raw_data','first_frame', 'all_actions_first_frame')
+    #dirname = os.path.join('.','raw_data','first_frame', 'all_actions_first_frame')
+    dirname = '.\\all_actions_first_frame'
     start = time()
     need_visualization = False
-    for i in range(0,31):
-        i = np.random.randint(0,5501)
-        # filename = 'frame{}.png'.format(str(i*10))
-        filenum = str(i)
-        # filenum = "005192"
+
+    for i in range(0,1):
         filenum = "004167"
         while len(filenum) < 6:
             filenum = '0'+ filenum
@@ -432,28 +431,11 @@ def main():
         filename = os.path.join(dirname, filename)
         if not os.path.isfile(filename):
             continue
-        filename = 'test.png' 
         print('\n',5*'>>>>>>>>','open file: '+filename.format(str(i*10)))
         img = cv2.imread(filename.format(str(i*10)))
         raw_img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
-        # dispImg("raw",raw_img)
-
-        # img = cv2.ximgproc.anisotropicDiffusion(img,0.1,100,10)
-        # selectiveSearch(img)
 
         pd = PrepareData(need_visualization)
-        r"TODO:maybe use selective search as initial region for grabcut?"
-        # pd.display_selectiveSearch = True
-        # rect_from_ss = pd.selectiveSearch(img, 320*240)
-        # print(f'before nms there are {len(rect_from_ss)} bbox')
-        # nms_bbox = non_max_suppression(rect_from_ss, 0.3)
-        # print(f'after nms there are {len(nms_bbox)} bbox')
-        # im_nms_box = pd._drawBboxOnImg(img,nms_bbox)
-        # dispImg("after nms",im_nms_box)
-        # print(nms_bbox)
-
-        # pd.presegmentImg(img,method='kmeans')
-        # pd.presegmentImg(img,type='HSV',method='threshold')
 
         contours, bbox_list, attr_list = pd.getContoursWithBbox(raw_img)
         print(contours)
