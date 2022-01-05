@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from generate_dataset import generateDataset
+#from generate_dataset import generateDataset
 
 class Coco:
 
@@ -66,10 +66,11 @@ class Coco:
         annotation['attributes']['occluded'] = False 
         return annotation
 
-    def add_image_with_annotation(self, zeng: dict):
-
+    def add_image(self, zeng: dict):
         image = self.image(zeng)
         self.instance["images"].append(image)
+
+    def add_image_with_annotation(self, zeng: dict):
 
         for label in zeng['labels']:
             annotation = self.annotation(label)
@@ -87,47 +88,55 @@ if __name__=='__main__':
     # 初始化coco，最初只执行一次即可
     coco = Coco()
     
-    # 此处添加循环，每导出一张图片，执行一次该命令。
-    zeng =  {
-                'file_name': "CATER_new_005192.png",
-                'labels': []
-            }
-    '''
-    {   'segmentation': [120,45,36,48,99],
-        'area': 111,
-        'bbox': [15,20,25,5],
-        'shape': 'spl',
-        'color': 'purple', 
-        'size': 'large',
-        'material': 'metal',
-        'coordination_X': 0,    #坐标需要是int类型而不是str
-        'coordination_Y': -2,
-        'coordination_Z': 0}
-    '''
+    # 此处添加循环，每导出一张图片，执行一次该命令
+    filenum_list = [5748, 5749,5750]
+    for filenum in filenum_list: 
+        filenum = str(filenum)
+        zeng =  {
+                    'file_name': "CATER_new_00{}.png".format(str(filenum)),
+                    'labels': []
+                }
 
-    dirname = '.\\all_actions_first_frame'
-    gd = generateDataset(dirname)
-    raw_img, filenum = gd.getImage()
-    d = gd.getDict()
+        coco.add_image(zeng)
+        '''
+        {   'segmentation': [120,45,36,48,99],
+            'area': 111,
+            'bbox': [15,20,25,5],
+            'shape': 'spl',
+            'color': 'purple', 
+            'size': 'large',
+            'material': 'metal',
+            'coordination_X': 0,    #坐标需要是int类型而不是str
+            'coordination_Y': -2,
+            'coordination_Z': 0}
+        '''
+        dirname = '.\\all_actions_first_frame'
+        gd = generateDataset(dirname)
 
-    label = {}
-    for i in range(1,2):
-        label['segmentation'] = []
-        label['segmentation'].append(d[filenum]['contours'][i].flatten().tolist())
-        label['area'] = 2022
-        label['bbox'] = d[filenum]['bbox'][i].tolist()
-        label['shape'] = 'spl'
-        label['color'] = d[filenum]['color_material'][i][0]
-        label['size'] = d[filenum]['size'][i]
-        label['material'] = d[filenum]['color_material'][i][1]
-        label['coordination_X'] = 0
-        label['coordination_Y'] = 0
-        label['coordination_Z'] = 0
+        raw_img, filenum = gd.getImage(filenum)
+        d = gd.getDict(filenum)
 
-    zeng['labels'].append(label)
-    print(zeng)
+        length = len(d[filenum]['color_material'])
+        print('+++++++++++++++++++++++++++++++++++++++')
+        print(length)
+        label = {}
+        for i in range(length):
+            label['segmentation'] = []
+            label['segmentation'].append(d[filenum]['contours'][i].flatten().tolist())
+            label['area'] = 2022
+            label['bbox'] = d[filenum]['bbox'][i].tolist()
+            label['shape'] = 'spl'
+            label['color'] = d[filenum]['color_material'][i][0]
+            label['size'] = d[filenum]['size'][i]
+            label['material'] = d[filenum]['color_material'][i][1]
+            label['coordination_X'] = 0
+            label['coordination_Y'] = 0
+            label['coordination_Z'] = 0
+            zeng['labels'].append(label)
+            print(zeng)
+            
+        coco.add_image_with_annotation(zeng)
 
-    coco.add_image_with_annotation(zeng)
     # 保存Coco文件，最后只执行一次即可
     output = './update.json'
     coco.save(output)
