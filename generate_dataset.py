@@ -3,6 +3,7 @@ from numpy.random.mtrand import f
 from prepare_data import PrepareData
 from simClassifier import SimClassifier
 from utils import dispImg, move_figure
+from Coco import Coco
 
 import numpy as np
 import os
@@ -98,8 +99,58 @@ class generateDataset:
 
 
 if __name__ == "__main__":
-    gd = generateDataset(dirname)
-    for i in range(10):
-        d = gd.getDict()
-        print(d)
-    # print(d)
+    # 初始化coco，最初只执行一次即可
+    coco = Coco()
+    
+    # 此处添加循环，每导出一张图片，执行一次该命令
+    filenum_list = [5748, 5749,5750]
+    for filenum in filenum_list: 
+        filenum = str(filenum)
+        zeng =  {
+                    'file_name': "CATER_new_00{}.png".format(str(filenum)),
+                    'labels': []
+                }
+
+        coco.add_image(zeng)
+        '''
+        {   'segmentation': [120,45,36,48,99],
+            'area': 111,
+            'bbox': [15,20,25,5],
+            'shape': 'spl',
+            'color': 'purple', 
+            'size': 'large',
+            'material': 'metal',
+            'coordination_X': 0,    #坐标需要是int类型而不是str
+            'coordination_Y': -2,
+            'coordination_Z': 0}
+        '''
+        dirname = '.\\all_actions_first_frame'
+        gd = generateDataset(dirname)
+
+        raw_img, filenum = gd.getImage(filenum)
+        d = gd.getDict(filenum)
+
+        length = len(d[filenum]['color_material'])
+        print('+++++++++++++++++++++++++++++++++++++++')
+        print(length)
+        label = {}
+        for i in range(length):
+            label['segmentation'] = []
+            label['segmentation'].append(d[filenum]['contours'][i].flatten().tolist())
+            label['area'] = 2022
+            label['bbox'] = d[filenum]['bbox'][i].tolist()
+            label['shape'] = 'spl'
+            label['color'] = d[filenum]['color_material'][i][0]
+            label['size'] = d[filenum]['size'][i]
+            label['material'] = d[filenum]['color_material'][i][1]
+            label['coordination_X'] = 0
+            label['coordination_Y'] = 0
+            label['coordination_Z'] = 0
+            zeng['labels'].append(label)
+            print(zeng)
+            coco.add_image_with_annotation(zeng)
+
+    # 保存Coco文件，最后只执行一次即可
+    output = './update.json'
+    coco.save(output)
+    print('success')
