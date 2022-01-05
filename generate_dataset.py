@@ -9,6 +9,7 @@ import os
 import cv2
 
 dirname = os.path.join('.','raw_data','first_frame', 'all_actions_first_frame')
+
 class generateDataset:
     def __init__(self, dirname:str):
         self.dirname = dirname
@@ -16,7 +17,8 @@ class generateDataset:
         # train a simple classifier for color, material prediction
         self.clf = SimClassifier(class_label="c*m")
         self.clf.train()
-        self.label_convert_dict = self.clf.get_label_dict()
+        self.label_convert_hsv_dict = self.clf.get_label_hsv_dict()
+        self.label_convert_size_dict = self.clf.get_label_size_dict()
         
     def getImage(self):
         i = np.random.randint(0,5501)
@@ -42,19 +44,24 @@ class generateDataset:
         center_list = []
         size_list = []
         area_list = []
+        feature_size_list = []
         for attr in attr_list:
             area_list.append(attr[0]) # add area
-            if attr[0] > 1000:        # add size
-                size_list.append("large")
-            elif attr[0] < 400:
-                size_list.append("small")
-            else:
-                size_list.append("medium")
+            list1 = []
+            list1.append(attr[0])
+            list1.append(attr[4])
+            list1.extend(attr[3])
+            feature_size_list.append(list1)
             hsv_list.append(attr[1])  # add HSV
             center_list.append(attr[3]) # add center location [x,y]
-        all_pred_val, predict_val = self.clf.predict(hsv_list)
+
+        _, predict_val_size = self.clf.predict_size(feature_size_list)
+        for val in predict_val_size:
+            size_list.append(self.label_convert_size_dict[val])
+
+        all_pred_val, predict_val = self.clf.predict_hsv(hsv_list)
         for val in predict_val:
-            attr_val.append(self.label_convert_dict[val])
+            attr_val.append(self.label_convert_hsv_dict[val])
 
         keep_idx = []
         cnt = 0
@@ -120,7 +127,7 @@ class generateDataset:
         single_dict = {filenum: dict(
                                 shape = all_shape_list,
                                 area = area_list,
-                                color_material = list(np.array(attr_val)[keep_idx]), 
+                                color_material = list(np.array(attr_val)[keep_idx]),
                                 all_prediction = list(np.array(all_pred_val)[keep_idx]),
                                 center = list(np.array(center_list)[keep_idx]),
                                 bbox = list(np.array(bbox_list)[keep_idx]),
