@@ -176,10 +176,8 @@ if __name__ == "__main__":
         d = gd.getDict(filenum)
 
         length = len(d[filenum]['color_material'])
-        print('+++++++++++++++++++++++++++++++++++++++')
-        print(length)
-        label = {}
         for i in range(length):
+            label = {}
             label['segmentation'] = []
             label['segmentation'].append(d[filenum]['contours'][i].flatten().tolist())
             label['area'] = d[filenum]['area']
@@ -192,8 +190,8 @@ if __name__ == "__main__":
             label['coordination_Y'] = 0
             label['coordination_Z'] = 0
             zeng['labels'].append(label)
-            print(zeng)
-            coco.add_image_with_annotation(zeng)
+            
+        coco.add_image_with_annotation(zeng)
 
     # 保存Coco文件，最后只执行一次即可
     output = './update.json'
