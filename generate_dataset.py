@@ -1,6 +1,6 @@
 from prepare_data import PrepareData
 from simClassifier import SimClassifier
-from utils import dispImg
+from utils import dispImg, StatusLogger
 from Coco import Coco_annotation
 
 import numpy as np
@@ -8,10 +8,10 @@ import os
 import cv2
 
 # dirname = os.path.join('.','raw_data','first_frame', 'all_actions_first_frame')
-dirname = os.path.join('.','raw_data', 'raw_data_from_005200_to_005699')
+dirname = os.path.join('.','raw_data', 'raw_data_from_005200_to_005699_sort')
 
 class GenerateDataset:
-    def __init__(self, dirname:str):
+    def __init__(self, dirname:str, reset_logger = False):
         self.dirname = dirname
         self.pd = PrepareData(need_visualization=False)
         # train a simple classifier for color, material prediction
@@ -19,6 +19,9 @@ class GenerateDataset:
         self.clf.train()
         self.label_convert_hsv_dict = self.clf.get_label_hsv_dict()
         self.label_convert_size_dict = self.clf.get_label_size_dict()
+        self.status_logger = StatusLogger(file='status.json')
+        if reset_logger:
+            self.status_logger.reset_logger()
 
     @staticmethod
     def getFullFilenum(filenum):
@@ -38,7 +41,8 @@ class GenerateDataset:
         if not os.path.isfile(filename):
             print(f'no file found for {filename}')
             filename = "test.png"
-        print('\n',5*'>>>>>>>>','open file: '+ filename)
+        print('\n[INFO][generate_dataset]','open file: '+ filename)
+        filename = './raw_data/raw_data_from_005200_to_005699_sort/005200-005299_sort/CATER_new_005202/CATER_new_005202_100.png'
         img = cv2.imread(filename)
         raw_img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
         return raw_img, filenum
@@ -101,13 +105,12 @@ class GenerateDataset:
 
         for c,b in zip(contours, bbox_list):
             keep = [True]
-            print('\n')
             print(attr_val[cnt], end=' ')
             print(size_list[cnt], end=' ')
             b = np.array(b).reshape(1, -1)
             print(b)
-            shapes = ['cub', 'con', 'spl', 'sph', 'cyl']
-            print(f"pls input the shape {[i for i in zip(range(len(shapes)), shapes)]}")
+            shapes = ['cube', 'cone', 'spl', 'sphere', 'cylinder']
+            print(f"\npls input the shape {[i for i in zip(range(len(shapes)), shapes)]}")
             screen = raw_img.copy()
             # self.pd._drawBboxOnImg(screen, b)
             # dispImg("raw",screen)
@@ -118,7 +121,7 @@ class GenerateDataset:
                     print(f"shape {tmp_shape_list[-1]} is saved")
                     all_shape_list.append(tmp_shape_list[-1])
                 else:
-                    print("[WARNING] no shape input")
+                    print("[WARNING][generate_dataset] no shape input")
                     all_shape_list.append('Unknown')
                 if len(tmp_shape_list) > 0:
                     # keep the shape value as default for next object
@@ -127,9 +130,10 @@ class GenerateDataset:
             cnt += 1
         assert len(keep_idx) > 0, "no annotations for this image"
         assert len(all_shape_list) == len(keep_idx), "annotations of shape do not correspond with other annos!"
-
-        contours = list(np.array(contours, dtype=object)[keep_idx])
-        list_contours = [ i.reshape(-1,).astype('int').tolist() for i in contours]
+        print(f"bbox_list has {len(bbox_list)} items, contours has {len(contours)}")
+        contours_keep = [contours[i] for i in range(len(contours)) if i in keep_idx]
+        # contours = np.array(contours, dtype=object)[keep_idx]
+        list_contours = [ i.reshape(-1,).astype('int').tolist() for i in contours_keep]
         single_dict = {filenum: dict(
                                 shape = all_shape_list,
                                 area = area_list,
@@ -139,70 +143,92 @@ class GenerateDataset:
                                 bbox = list(np.array(bbox_list)[keep_idx]),
                                 contours = list_contours,
                                 size = list(np.array(size_list)[keep_idx]))}
-        self.pd._dispAllContours(raw_img, contours, single_dict[filenum]['bbox'])
+        self.pd._dispAllContours(raw_img, contours_keep, single_dict[filenum]['bbox'])
         # print(type(list_contours[0][0]))
         # print(single_dict[filename]["color_material"])
         # print(single_dict[filenum]['contours'])
         return single_dict
 
     def generate(self):
-        IMG_EXTENSIONS = ['.png','.jpg']
-        is_image_file = lambda filename : any(filename.endswith(ext) for ext in IMG_EXTENSIONS)
         # dirname is the top directory containing all raw images
         for subdir in sorted(os.listdir(dirname)):
-            dir = os.path.join(dirname, subdir)
-            if not os.path.isdir(dir):
+            _, finished_secdir, _ = self.status_logger.get_status()
+            if subdir in finished_secdir:
                 continue
-            for root, _, fnames in sorted(os.walk(dir)):
-                coco = Coco_annotation() # 初始化coco，最初只执行一次即可
-                for fn in sorted(fnames):
-                    if is_image_file(fn):
-                        path = os.path.join(root, fn)
-                        raw_img, filenum = self.getImage(path)
-                        d = self.getDict(raw_img, filenum)
-                        zeng =  {
-                                    'file_name': "CATER_new_{}.png".format(str(filenum)),
-                                    'labels': []
-                                }
+            secdir = os.path.join(dirname, subdir)
+            print(f"[INFO][generate_dataset] start to annotate in folder {subdir}")
+            if not os.path.isdir(secdir):
+                continue
+            for subsubdir in sorted(os.listdir(secdir)):
+                _, _, finished_thirdir = self.status_logger.get_status()
+                if subsubdir in finished_thirdir:
+                    continue
+                thirdir = os.path.join(dirname, subdir, subsubdir)
+                print(f"[INFO][generate_dataset] annotate video {subsubdir}")
+                self.status_logger.update_status(current_dir=subsubdir)
+                if not os.path.isdir(thirdir):
+                    continue
+                self.generate_in_video_folder(thirdir)
+                
+                print(f'[INFO][generate_dataset] finished annotating video {subsubdir}')
+                self.status_logger.update_status(finished_thirdir=subsubdir)
 
-                        coco.add_image(zeng)
-                        '''
-                        {   'segmentation': [120,45,36,48,99],
-                            'area': 111,
-                            'bbox': [15,20,25,5],
-                            'shape': 'spl',
-                            'color': 'purple', 
-                            'size': 'large',
-                            'material': 'metal',
-                            'coordination_X': 0,    #坐标需要是int类型而不是str
-                            'coordination_Y': -2,
-                            'coordination_Z': 0}
-                        '''
-                        length = len(d[filenum]['color_material'])
-                        print('+++++++++++++++++++++++++++++++++++++++'*3)
-                        print(f"{length} annotations in the image {filenum}")
-                        for i in range(length):
-                            label = {}
-                            label['segmentation'] = []
-                            label['segmentation'].append(d[filenum]['contours'][i])
-                            label['area'] = d[filenum]['area'][i]
-                            label['bbox'] = d[filenum]['bbox'][i].tolist()
-                            label['shape'] = d[filenum]['shape'][i]
-                            label['color'] = d[filenum]['color_material'][i][0]
-                            label['size'] = d[filenum]['size'][i]
-                            label['material'] = d[filenum]['color_material'][i][1]
-                            label['coordination_X'] = 0
-                            label['coordination_Y'] = 0
-                            label['coordination_Z'] = 0
-                            zeng['labels'].append(label)
-                            # print(zeng)
-                        coco.add_image_with_annotation(zeng)
+            print(f'[INFO][generate_dataset] finished annotating folder {subdir}')
+            self.status_logger.update_status(finished_secdir=subdir)
 
-                # 保存Coco文件，最后只执行一次即可
-                output = 'dataset/{}.json'.format(subdir)
-                coco.save(output)
-                print(f'success saved to {output}')
-
+    def generate_in_video_folder(self, thirdir):
+        """
+            thridir: the folder for all images in a single video
+        """
+        IMG_EXTENSIONS = ['.png','.jpg']
+        is_image_file = lambda filename : any(filename.endswith(ext) for ext in IMG_EXTENSIONS)
+        for root, _, fnames in sorted(os.walk(thirdir)):
+            coco = Coco_annotation() # 初始 化coco，最初只执行一次即可
+            for fn in sorted(fnames):
+                if is_image_file(fn):
+                    path = os.path.join(root, fn)
+                    raw_img, filenum = self.getImage(path)
+                    d = self.getDict(raw_img, filenum)
+                    zeng =  {
+                                'file_name': "CATER_new_{}.png".format(str(filenum)),
+                                'labels': []
+                    }
+                    coco.add_image(zeng)
+                    '''
+                    {   'segmentation': [120,45,36,48,99],
+                        'area': 111,
+                        'bbox': [15,20,25,5],
+                        'shape': 'spl',
+                        'color': 'purple', 
+                        'size': 'large',
+                        'material': 'metal',
+                        'coordination_X': 0,    #坐标需要是int类型而不是str
+                        'coordination_Y': -2,
+                        'coordination_Z': 0}
+                    '''
+                    length = len(d[filenum]['color_material'])
+                    print('+++++++++++++++++++++++++++++++++++++++'*3)
+                    print(f"{length} annotations in the image {filenum}")
+                    for i in range(length):
+                        label = {}
+                        label['segmentation'] = []
+                        label['segmentation'].append(d[filenum]['contours'][i])
+                        label['area'] = d[filenum]['area'][i]
+                        label['bbox'] = d[filenum]['bbox'][i].tolist()
+                        label['shape'] = d[filenum]['shape'][i]
+                        label['color'] = d[filenum]['color_material'][i][0]
+                        label['size'] = d[filenum]['size'][i]
+                        label['material'] = d[filenum]['color_material'][i][1]
+                        label['coordination_X'] = 0
+                        label['coordination_Y'] = 0
+                        label['coordination_Z'] = 0
+                        zeng['labels'].append(label)
+                        # print(zeng)
+                    coco.add_image_with_annotation(zeng)
+            # 保存Coco文件，最后只执行一次即可
+            output = 'dataset/{}.json'.format(thirdir[-16:])
+            coco.save(output)
+            print(f'success saved to {output}')
 
 if __name__ == "__main__":
     cv2.setUseOptimized(True)
