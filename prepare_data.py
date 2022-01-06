@@ -316,7 +316,7 @@ class PrepareData:
                 if ith_pt >= updated_item.shape[0]-2:
                     break
                 distance = np.linalg.norm(updated_item[ith_pt][0] - updated_item[ith_pt-1][0])
-                if distance**2 <= -1:# TODO adjust parameter here
+                if distance**2 <= 10:# TODO adjust parameter here
                     if disp_contour_val:
                         print(f"{updated_item[ith_pt][0]} deleted, too close to {updated_item[ith_pt-1][0]}")
                     updated_item = np.delete(updated_item, ith_pt, axis=0)

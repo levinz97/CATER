@@ -42,7 +42,6 @@ class GenerateDataset:
             print(f'no file found for {filename}')
             filename = "test.png"
         print('\n[INFO][generate_dataset]','open file: '+ filename)
-        filename = './raw_data/raw_data_from_005200_to_005699_sort/005200-005299_sort/CATER_new_005202/CATER_new_005202_100.png'
         img = cv2.imread(filename)
         raw_img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
         return raw_img, filenum
