@@ -43,12 +43,12 @@ class Coco_annotation:
                       'image_id': self.image_id}
         
         category_name = label['shape']+'_'+label['color']+'_'+label['size']+'_'+label['material']
-        category_id = 233
-        for catagory in self.instance["categories"]:
-            if catagory['name'] == category_name:
-                category_id = catagory['id']
-                break 
-
+        # print(category_name)
+        for category in self.instance["categories"]:
+            if category['name'] == category_name:
+                category_id = category['id']
+                break
+             
         annotation['category_id'] = category_id
         annotation['segmentation'] = label['segmentation']
         annotation['area'] = label['area']

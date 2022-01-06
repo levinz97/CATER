@@ -73,9 +73,9 @@ class GenerateDataset:
         cnt = 0
         start_shape_annotation = dict(start=True)
         all_shape_list = [] # to store all objects' shape
-        tmp_shape_list = ['cub'] # to store the single object shape, default as cubic
+        tmp_shape_list = ['cube'] # to store the single object shape, default as cubic
         def press(event):
-            a = ['cub', 'con', 'spl', 'sph', 'cyl']
+            a = ['cube', 'cone', 'spl', 'sphere', 'cylinder']
             if event.key == 'c':
                 print("clear all val in keep")
                 keep.clear()

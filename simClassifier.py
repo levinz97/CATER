@@ -19,7 +19,7 @@ class Data_hsv:
     # The statistical color and material information is included in the hsv.json file
     def get_label_dict(self):
         # input_path = './raw_data/hsv.json'
-        input_path = os.path.join('.','raw_data','clf_data','hsv.json')
+        input_path = os.path.join('.','raw_data','clf_data','label_dict')
         with open(input_path, 'r', encoding='UTF-8') as input_file:
             dictionary = json.load(input_file)
             input_file.close()
@@ -166,7 +166,7 @@ class SimClassifier:
         self.hsvmodels.append(model4)
         model5 = MLPClassifier(solver='sgd', activation='relu', learning_rate='adaptive', shuffle=False, alpha=1e-6,
                                hidden_layer_sizes=(150), batch_size=32, random_state=random_state)
-        # self.models.append(model5)
+        # self.hsvmodels.append(model5)
         model6 = OneVsRestClassifier(svm.SVC(kernel='rbf', probability=True, random_state=random_state))
         # self.models.append(model6)
         assert len(self.hsvmodels) > 0, "no model added!"
