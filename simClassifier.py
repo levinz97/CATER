@@ -170,7 +170,7 @@ class SimClassifier:
         model6 = OneVsRestClassifier(svm.SVC(kernel='rbf', probability=True, random_state=random_state))
         # self.models.append(model6)
         assert len(self.hsvmodels) > 0, "no model added!"
-        print("[INFO] Successfully initialize a new model !")
+        print("[INFO][simClassifier] Successfully initialize a new model !")
         #return self.models
 
     def sizemodel_initial(self):
@@ -188,6 +188,7 @@ class SimClassifier:
                 self.sizemodels.append(model)
 
     def train(self):
+        warnings.filterwarnings('ignore')
         self.feature_hsv, self.label_hsv = self.class_choice()()
         self.x_train_hsv, self.x_test_hsv, self.y_train_hsv, self.y_test_hsv = self.data_initial(self.feature_hsv, self.label_hsv)
         self.x_train_size, self.x_test_size, self.y_train_size, self.y_test_size = self.data_initial(self.feature_size, self.label_size)
@@ -195,7 +196,7 @@ class SimClassifier:
         self.sizemodel_initial()
         for model in self.hsvmodels:
             model.fit(self.x_train_hsv, self.y_train_hsv)
-        print("[INFO] Model training completed !")
+        print("[INFO][simClassifier] Model training completed !")
 
     def ensembleLearning(self, X_test, models):
         y_test_pred = 0
@@ -212,7 +213,7 @@ class SimClassifier:
                     #     y_test_pred = np.vstack((y_test_pred,y_p))
                 else:
                     print(
-                        f"[{'warning'.upper()}] model Failed:\n{trained_model} collapses\n with output{y_p}")
+                        f"[{'warning'.upper()}][simClassifier] model Failed:\n{trained_model} collapses\n with output{y_p}")
         y_test_pred = y_test_pred.astype(np.uint8)
         all_pred = y_test_pred
         #print(y_test_pred)
