@@ -1,3 +1,4 @@
+import os
 import json
 import numpy as np
 import warnings
@@ -17,7 +18,8 @@ class Data_hsv:
 
     # The statistical color and material information is included in the hsv.json file
     def get_label_dict(self):
-        input_path = './label_dict'
+        # input_path = './raw_data/hsv.json'
+        input_path = os.path.join('.','raw_data','clf_data','label_dict')
         with open(input_path, 'r', encoding='UTF-8') as input_file:
             dictionary = json.load(input_file)
             input_file.close()
@@ -30,7 +32,8 @@ class Data_size:
         pass
 
     def get_dataset(self):
-        input_path = './sizedata'
+        # input_path = './raw_data/sizedata'
+        input_path = os.path.join('.','raw_data','clf_data','sizedata')
         with open(input_path, 'r', encoding='UTF-8') as input_file:
             dataset = json.load(input_file)
             input_file.close()
@@ -163,7 +166,7 @@ class SimClassifier:
         self.hsvmodels.append(model4)
         model5 = MLPClassifier(solver='sgd', activation='relu', learning_rate='adaptive', shuffle=False, alpha=1e-6,
                                hidden_layer_sizes=(150), batch_size=32, random_state=random_state)
-        # self.models.append(model5)
+        # self.hsvmodels.append(model5)
         model6 = OneVsRestClassifier(svm.SVC(kernel='rbf', probability=True, random_state=random_state))
         # self.models.append(model6)
         assert len(self.hsvmodels) > 0, "no model added!"
@@ -203,7 +206,7 @@ class SimClassifier:
             if isinstance(y_test_pred, int):
                 y_test_pred = y_p  # 如果是int 预测结果传给他
             else:
-                if np.max(y_p) != np.min(y_p):  # 最大值不等于最小值
+                if np.max(y_p) != np.min(y_p) or y_p.shape[0] == 1:  # 最大值不等于最小值
                     y_test_pred = np.vstack((y_test_pred, y_p))  # 把它堆起来
                     # if trained_model == self.models.model5  or trained_model == self.models.model4:
                     #     y_test_pred = np.vstack((y_test_pred,y_p))
@@ -267,9 +270,10 @@ def main():
     print(a)
     print(b)
     clf.eval(b, clf.y_test_hsv)
+    print('now predict size', "-"*50)
     c, d = clf.predict_size(clf.x_test_size)
-    print(a)
-    print(b)
+    print(c)
+    print(d)
     clf.eval(d, clf.y_test_size)
 
 
