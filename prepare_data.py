@@ -35,16 +35,16 @@ class PrepareData:
         contours, refine_area_list, bbox_list, attr_list = self.getContoursFromSegmentedImg(img)
 
         # refine the wrong segmented region with iterative grabCut
-        def refineWithIterativeMethod(img, contours, refine_area_list, bbox_list, attr_list, max_iterative_cnt = 8):
+        def refineWithIterativeMethod(img, contours, refine_area_list, bbox_list, attr_list, max_iterative_cnt = 6):
             cnt = 0 # count iterative time
             while len(refine_area_list) > 0 or len(bbox_list) < 5:
                 cnt += 1
-                print(">>"*20, f'{cnt+1} run of grabcut')
+                print(">>"*10, f'{cnt+1} run of grabcut')
                 if cnt > max_iterative_cnt:
                     break
                 tmp_refine_list = []
                 nms_bbox = []
-                if self.allow_user_select_rect and cnt % 6 == 0:
+                if self.allow_user_select_rect and cnt % 5 == 0:
                 # interactive foreground selection from user
                     if(len(contours) < 6):
                         print("number of bbox detected too small, user input needed!")
@@ -53,7 +53,7 @@ class PrepareData:
                     refine_area_list += usr_select_rect
                 for idx, bbox in enumerate(refine_area_list):
                     _img = self._grabCut(raw_img, bbox)
-                    if cnt == 4:
+                    if cnt == 3:
                         _,_,_w,_h = bbox
                         rect_from_ss = self.selectiveSearch(_img, _w*_h)
                         print(f'before nms there are {len(rect_from_ss)} bbox')
@@ -316,7 +316,7 @@ class PrepareData:
                 if ith_pt >= updated_item.shape[0]-2:
                     break
                 distance = np.linalg.norm(updated_item[ith_pt][0] - updated_item[ith_pt-1][0])
-                if distance**2 <= -1:# TODO adjust parameter here
+                if distance**2 <= 10:# TODO adjust parameter here
                     if disp_contour_val:
                         print(f"{updated_item[ith_pt][0]} deleted, too close to {updated_item[ith_pt-1][0]}")
                     updated_item = np.delete(updated_item, ith_pt, axis=0)
@@ -433,7 +433,7 @@ def main():
         if not os.path.isfile(filename):
             continue
         filename = 'test.png' 
-        print('\n',5*'>>>>>>>>','open file: '+filename.format(str(i*10)))
+        print('\n',2*'>>>>>>>>','open file: '+filename.format(str(i*10)))
         img = cv2.imread(filename.format(str(i*10)))
         raw_img = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
         # dispImg("raw",raw_img)

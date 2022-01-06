@@ -3,6 +3,7 @@ import matplotlib.widgets as mwidgets
 import cv2
 import numpy as np
 import matplotlib
+import json
 
 # replace opencv waitKey() to avoid error due to pyqt5 
 def dispImg(str,img, kill_window=True, on_press=None, move_dist=[400, 200]):
@@ -95,8 +96,57 @@ def getRectFromUserSelect(img)->list:
     print(f"final selection: {rects}")
     return rects
 
+class StatusLogger:
+    def __init__(self, file='status.json'):
+        self.file = file
+    def reset_logger(self):
+        with open(self.file, 'r+', encoding='utf-8') as f:
+            data = json.load(f)
+            data['finished_secdir'] = []
+            data['finished_thirdir'] = []
+            data['current_dir'] = ''
+            f.seek(0)
+            json.dump(data, f, indent=4)
+            f.truncate()
+           
+
+    def update_status(self, current_dir:str = None, finished_secdir= None, finished_thirdir = None):
+        with open(self.file, 'r+', encoding='utf-8') as f:
+            data = json.load(f)
+            if current_dir is not None:
+                data['current_dir'] = current_dir
+            if finished_secdir is not None:
+                if isinstance(finished_secdir, str):
+                    data['finished_secdir'].append(finished_secdir)
+                elif isinstance(finished_secdir, list):
+                    data['finished_secdir'] += finished_secdir
+            if finished_thirdir is not None:
+                if isinstance(finished_thirdir, str):
+                    data['finished_thirdir'].append(finished_thirdir)
+                elif isinstance(finished_thirdir, list):   
+                    data['finished_thirdir'] += finished_thirdir
+            f.seek(0)
+            json.dump(data, f, indent=4)
+            f.truncate()
+
+    def get_status(self):
+        with open(self.file, 'r+', encoding='utf-8') as f:
+            data = json.load(f)
+            cur_d, finished_secdir, finished_thirdir = data['current_dir'], data['finished_secdir'],data['finished_thirdir']
+        return cur_d, finished_secdir, finished_thirdir 
+
 if __name__ == "__main__":
-    img = cv2.imread('test.png')
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    dispImg("raw img", img,kill_window=False)
-    getRectFromUserSelect(img)
+    # img = cv2.imread('test.png')
+    # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    # dispImg("raw img", img,kill_window=False)
+    # getRectFromUserSelect(img)
+    file = 'status.json'
+    sl = StatusLogger()
+    sl.reset_logger()
+    sl.update_status(' ', [])
+    sl.update_status('test_dir')
+    sl.update_status(finished_secdir='000')
+    cur_d, finished_secdir,finished_thirdir = sl.get_status()
+    if '000' in finished_secdir:
+        print("finished")
+    sl.reset_logger()
