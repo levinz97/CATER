@@ -17,6 +17,12 @@ sh ./connect_server.sh
 │   └── images
 │    └── image 
 ├── *raw_data
+│   ├── raw_data_from_005200_to_005699
+│   │   ├── 005200-005299
+│   │   ├── 005300-005399
+│   │   ├── 005400-005499
+│   │   ├── 005500-005599
+│   │   └── 005600-005699
 │   ├── all_action_camera_move
 │   │   ├── lists
 │   │   │   └── localize
