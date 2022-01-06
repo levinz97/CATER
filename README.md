@@ -17,6 +17,10 @@ sh ./connect_server.sh
 │   └── images
 │    └── image 
 ├── *raw_data
+│   ├── *clf_data
+│   │   ├── hsv.json
+│   │   ├── label_dict
+│   │   └── sizedata
 │   ├── raw_data_from_005200_to_005699
 │   │   ├── 005200-005299
 │   │   ├── 005300-005399
@@ -28,16 +32,10 @@ sh ./connect_server.sh
 │   │   │   └── localize
 │   │   ├── scenes
 │   │   └── videos
-│   ├── cocotest
-│   │   ├── annotations
-│   │   └── images
-│   │       └── image
-│   ├── first_frame
-│   │   └── all_actions_first_frame
-│   └── mydata
 ├── scripts
 └── test
     └── __pycache__
+
 *: must have
 
 ```
