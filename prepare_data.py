@@ -311,12 +311,23 @@ class PrepareData:
                 print(type(item),item.shape)
             ith_pt = 0
             updated_item = item
+            SMOOTH_THR_SMALL = 4
+            SMOOTH_THR_MEDIUM = 9
+            SMOOTH_THR_LARGE = 16
+            smooth_threshold = 0
+            if 120 < area < 400:
+                smooth_threshold =  SMOOTH_THR_SMALL
+            elif 400 <= area < 1000:
+                smooth_threshold = SMOOTH_THR_MEDIUM
+            elif area >= 1000:
+                smooth_threshold = SMOOTH_THR_LARGE
+
             while True:
                 # print(f"ith_pt={ith_pt}, updated_item has {updated_item.shape[0]} elements")
                 if ith_pt >= updated_item.shape[0]-2:
                     break
                 distance = np.linalg.norm(updated_item[ith_pt][0] - updated_item[ith_pt-1][0])
-                if distance**2 <= 10:# TODO adjust parameter here
+                if distance**2 <= smooth_threshold:# TODO adjust parameter here
                     if disp_contour_val:
                         print(f"{updated_item[ith_pt][0]} deleted, too close to {updated_item[ith_pt-1][0]}")
                     updated_item = np.delete(updated_item, ith_pt, axis=0)
