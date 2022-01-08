@@ -51,10 +51,12 @@ class Data:
                         if obj['shape'] == self.dictionary['annotations'][num]['attributes']['shape']:
                             if obj['color'] == self.dictionary['annotations'][num]['attributes']['color']:
                                 if obj['material'] == self.dictionary['annotations'][num]['attributes']['material']:
-                                    self.dictionary['annotations'][num]['attributes']['size'] = obj['size']
-                                    self.dictionary['annotations'][num]['attributes']['coordination_X'] = obj['locations'][str(frame_number)][0]
-                                    self.dictionary['annotations'][num]['attributes']['coordination_Y'] = obj['locations'][str(frame_number)][1]
-                                    self.dictionary['annotations'][num]['attributes']['coordination_Z'] = obj['locations'][str(frame_number)][2]
+                                    if obj['size'] == self.dictionary['annotations'][num]['attributes']['size']:
+                                        self.dictionary['annotations'][num]['attributes']['coordination_X'] = obj['locations'][str(frame_number)][0]
+                                        self.dictionary['annotations'][num]['attributes']['coordination_Y'] = obj['locations'][str(frame_number)][1]
+                                        self.dictionary['annotations'][num]['attributes']['coordination_Z'] = obj['locations'][str(frame_number)][2]
+                                    else:
+                                        continue
                                 else:
                                     continue
                             else:
