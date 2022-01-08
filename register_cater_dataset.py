@@ -1,4 +1,3 @@
-from shutil import Error
 from detectron2.data.datasets import register_coco_instances
 from detectron2.data.datasets.coco import load_coco_json
 import os

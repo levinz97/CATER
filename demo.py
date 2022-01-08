@@ -1,4 +1,4 @@
-import warnings
+import register_cater_dataset
 from utils import dispImg
 
 from detectron2.config import get_cfg
@@ -11,7 +11,7 @@ from detectron2.evaluation.evaluator import inference_on_dataset
 from detectron2.evaluation import COCOEvaluator
 
 import cv2
-import register_cater_dataset
+import warnings
 import os
 
 
@@ -21,23 +21,27 @@ if __name__ == "__main__":
     annotation_location = os.path.join('.', 'dataset', 'annotations','5200-5214.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
-    register_cater_dataset.register_dataset(dataset_name='cater_test')
+    test_annot_location = os.path.join('.', 'dataset', 'annotations','5301-5305.json')
+    test_img_folder = os.path.join('.', 'dataset', 'images','test_image')
+    register_cater_dataset.register_dataset(dataset_name='cater_test', annotations_location=test_annot_location, image_folder=test_img_folder)
     # set configuration file
     cfg = get_cfg()
     cfg.merge_from_file("detectron2/configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
 
     cfg.DATASETS.TRAIN = ("cater",)
-    cfg.DATASETS.TEST = ()
-    cfg.DATALOADER.NUM_WORKERS = 4
+    cfg.DATALOADER.NUM_WORKERS = 6
 
     cfg.MODEL.WEIGHTS = "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl"
-
-    cfg.SOLVER.IMS_PER_BATCH = 3
-    cfg.SOLVER.MAX_ITER = (1000)
-    cfg.SOLVER.BASE_LR = 0.01
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 270
+    # Total number of RoIs per training minibatch =
+    #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
+    # E.g., a common configuration is: 512 * 16 = 8192
     # number of ROI per image
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 20
+
+    cfg.SOLVER.IMS_PER_BATCH = 7
+    cfg.SOLVER.MAX_ITER = 5000
+    cfg.SOLVER.BASE_LR = 0.01
 
     cfg.OUTPUT_DIR = "output"
     if input("print configurations? ") == 'y':
@@ -48,16 +52,18 @@ if __name__ == "__main__":
         trainer.train()
 
     if input("continue to evaluate? ") == 'y':
-        cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
+        cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05
         cfg.DATASETS.TEST = ("cater_test",)
+        cfg.TEST.AUG.ENABLED = False
         cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
-        cfg.TEST.EVAL_PERIOD = 50
-        model = trainer.build_model(cfg)
-        res = trainer.test(cfg, model, evaluators=COCOEvaluator("cater",distributed=False))
+        trainer.resume_or_load(resume=True)
+        # cfg.TEST.EVAL_PERIOD = 50
+        # model = trainer.build_model(cfg)
+        # res = trainer.test(cfg, model, evaluators=COCOEvaluator("cater",distributed=False))
         ## equivalent way for evaluation
-        # evaluator = COCOEvaluator("cater", cfg, False)
-        # val_loader = build_detection_test_loader(cfg, "cater")
-        # inference_on_dataset(trainer.model, val_loader, evaluator)
+        evaluator = COCOEvaluator("cater_test")
+        val_loader = build_detection_test_loader(cfg, "cater_test")
+        inference_on_dataset(trainer.model, val_loader, evaluator)
 
     if input("continue to predict? ") == 'y':
         warnings.filterwarnings('ignore')
@@ -78,4 +84,3 @@ if __name__ == "__main__":
             v = vis.draw_instance_predictions(pred[item])
             img = v.get_image()[:, :, ::-1]
             dispImg("prediction", img, kill_window=True)
-            img = []
