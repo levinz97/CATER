@@ -18,10 +18,10 @@ import os
 if __name__ == "__main__":
     setup_logger()
     # register dataset
-    annotation_location = os.path.join('.', 'dataset', 'annotations','5200-5214.json')
+    annotation_location = os.path.join('.', 'dataset', 'annotations','5200-5229.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
-    test_annot_location = os.path.join('.', 'dataset', 'annotations','5301-5305.json')
+    test_annot_location = os.path.join('.', 'dataset', 'annotations','5311-5320.json')
     test_img_folder = os.path.join('.', 'dataset', 'images','test_image')
     register_cater_dataset.register_dataset(dataset_name='cater_test', annotations_location=test_annot_location, image_folder=test_img_folder)
     # set configuration file
@@ -37,9 +37,9 @@ if __name__ == "__main__":
     #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
     # E.g., a common configuration is: 512 * 16 = 8192
     # number of ROI per image
-    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 20
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 30
 
-    cfg.SOLVER.IMS_PER_BATCH = 7
+    cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.SOLVER.MAX_ITER = 5000
     cfg.SOLVER.BASE_LR = 0.01
 
@@ -55,10 +55,10 @@ if __name__ == "__main__":
         cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05
         cfg.DATASETS.TEST = ("cater_test",)
         cfg.TEST.AUG.ENABLED = False
-        cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
-        trainer.resume_or_load(resume=True)
+        # cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
+        trainer.resume_or_load(resume=True) # fixed 0 AP error
         # cfg.TEST.EVAL_PERIOD = 50
-        # model = trainer.build_model(cfg)
+        # model = trainer.build_model(cfg) ## build_model does not load any weight from cfg, causing AP = 0!
         # res = trainer.test(cfg, model, evaluators=COCOEvaluator("cater",distributed=False))
         ## equivalent way for evaluation
         evaluator = COCOEvaluator("cater_test")
