@@ -1415,14 +1415,14 @@ class Five_to_one:
 
 if __name__ == "__main__":
     
-    start = 5205
-    end = 5209
+    start = 5240
+    end = 5244
 
     output_path = d_data_path= './d_data/{}-{}.json'.format(start,end)
     fto = Five_to_one()
 
     for i in range(start,int(end+1)):
-        c_data_path = './c_data/00{}/annotations/instances_default.json'.format(str(i))
+        c_data_path = './c_data/{}/annotations/instances_default.json'.format(str(i))
         input_path = c_data_path
 
         json_path = './json/CATER_new_00{}.json'.format(str(i))
@@ -1430,7 +1430,7 @@ if __name__ == "__main__":
         
         data = Data(c_data_path, json_path, d_data_path)
         data.check()
-        data.relabel()
+        data.final_relabel()
         data.save()
         print(2*'>>>>>>>>>'+'json check finish')
     
