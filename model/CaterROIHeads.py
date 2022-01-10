@@ -1,9 +1,17 @@
 from typing import Dict, List, Optional
+from detectron2.layers import ShapeSpec
 from detectron2.modeling.poolers import ROIPooler
+from detectron2.modeling.roi_heads import select_foreground_proposals
+
 from detectron2.modeling.roi_heads import StandardROIHeads, ROI_HEADS_REGISTRY
 
 from detectron2.structures import ImageList, Instances
 import torch
+
+from coordinate_head import (
+    build_coordinate_head,
+    coordinate_loss
+    )
 
 @ROI_HEADS_REGISTRY.register()
 class CaterROIHeads(StandardROIHeads):
@@ -31,14 +39,16 @@ class CaterROIHeads(StandardROIHeads):
         coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_RESOLUTION
         coordinate_pooler_sampling_ratio = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_SAMPLING_RATIO
         coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE
-        in_features = cfg.ROI_HEADS.INFEATURES
-        coordinate_pooler_scale  = tuple(1.0 / input_shape[k].stride for k in in_features)
+        coordinate_pooler_scale  = tuple(1.0 / input_shape[k].stride for k in self.in_features)
         self.coordinate_pooler = ROIPooler(
             output_size=coordinate_pooler_resolution,
             scales=coordinate_pooler_scale,
             sampling_ratio=coordinate_pooler_sampling_ratio,
             pooler_type=coordinate_pooler_type
         )
+
+        shape = ShapeSpec(channels=self.input_channels)
+        self.coordinate_head = build_coordinate_head(cfg, input_shape)
 
     
     def _forward_color_material(self, features: Dict[str, torch.Tensor], instances: List[Instances]):
@@ -66,9 +76,15 @@ class CaterROIHeads(StandardROIHeads):
             In inference, update `instances` with new fields "coordinate3d" and return it.
 
         """
-
+        features_list = [features[f] for f in self.in_features]
         if self.training:
-            
+            proposals, _ = select_foreground_proposals(instances, self.num_classes)
+            if len(proposals) > 0:
+                proposal_boxes = [x.proposal_boxes for x in proposals]
+                features_coord = self.coordinate_pooler(features_list, proposal_boxes)
+
+
+
             # return loss
             pass
         else:
