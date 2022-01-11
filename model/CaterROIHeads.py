@@ -36,19 +36,22 @@ class CaterROIHeads(StandardROIHeads):
         pass
 
     def _init_coordinate_head(self, cfg, input_shape):
+        coordinate_in_features  = self.in_features
+        # coordinate_in_features           = cfg.MODEL.ROI_COORDINATE_HEAD.IN_FEATURES
         coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_RESOLUTION
         coordinate_pooler_sampling_ratio = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_SAMPLING_RATIO
         coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE
-        coordinate_pooler_scale  = tuple(1.0 / input_shape[k].stride for k in self.in_features)
+        coordinate_pooler_scale  = tuple(1.0 / input_shape[k].stride for k in coordinate_in_features)
         self.coordinate_pooler = ROIPooler(
             output_size=coordinate_pooler_resolution,
             scales=coordinate_pooler_scale,
             sampling_ratio=coordinate_pooler_sampling_ratio,
             pooler_type=coordinate_pooler_type
         )
-
-        shape = ShapeSpec(channels=self.input_channels)
-        self.coordinate_head = build_coordinate_head(cfg, input_shape)
+        
+        in_channels = [input_shape[f].channels for f in coordinate_in_features][0]
+        shape = ShapeSpec()
+        self.coordinate_head = build_coordinate_head(cfg, shape)
 
     
     def _forward_color_material(self, features: Dict[str, torch.Tensor], instances: List[Instances]):
@@ -98,6 +101,7 @@ class CaterROIHeads(StandardROIHeads):
         proposals: List[Instances],
         targets: Optional[List[Instances]] = None
     ):
+        losses = {}
         if not self.separate_attrpred_on:
             instances, losses = super().forward(images, features, proposals, targets)
 
