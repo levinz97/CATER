@@ -51,10 +51,12 @@ class Data:
                         if obj['shape'] == self.dictionary['annotations'][num]['attributes']['shape']:
                             if obj['color'] == self.dictionary['annotations'][num]['attributes']['color']:
                                 if obj['material'] == self.dictionary['annotations'][num]['attributes']['material']:
-                                    self.dictionary['annotations'][num]['attributes']['size'] = obj['size']
-                                    self.dictionary['annotations'][num]['attributes']['coordination_X'] = obj['locations'][str(frame_number)][0]
-                                    self.dictionary['annotations'][num]['attributes']['coordination_Y'] = obj['locations'][str(frame_number)][1]
-                                    self.dictionary['annotations'][num]['attributes']['coordination_Z'] = obj['locations'][str(frame_number)][2]
+                                    if obj['size'] == self.dictionary['annotations'][num]['attributes']['size']:
+                                        self.dictionary['annotations'][num]['attributes']['coordination_X'] = obj['locations'][str(frame_number)][0]
+                                        self.dictionary['annotations'][num]['attributes']['coordination_Y'] = obj['locations'][str(frame_number)][1]
+                                        self.dictionary['annotations'][num]['attributes']['coordination_Z'] = obj['locations'][str(frame_number)][2]
+                                    else:
+                                        continue
                                 else:
                                     continue
                             else:
@@ -73,7 +75,7 @@ class Data:
                         pass
     
     def relabel(self):
-               
+        
         annotations_length = len(self.dictionary['annotations'])
 
         for annotation_num in range(annotations_length):
@@ -91,7 +93,7 @@ class Data:
                     self.dictionary['annotations'][annotation_num]['category_id'] = category_id
                 else:
                     pass
-        
+    
     def save(self):
         
         output = json.dumps(self.dictionary)
@@ -103,7 +105,7 @@ if __name__ == "__main__":
     
     wrong_dict = {}
 
-    for i in range(5259,5286):
+    for i in range(5205,5210):
         
         input_data_path = './a_data/CATER_new_00{}.json'.format(str(i))
         json_path = './json/CATER_new_00{}.json'.format(str(i))
