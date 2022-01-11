@@ -1,3 +1,4 @@
+from detectron2.config.config import CfgNode
 import register_cater_dataset
 from utils import dispImg
 
@@ -14,11 +15,14 @@ import cv2
 import warnings
 import os
 
+def train_on_server(cfg:CfgNode):
+    cfg.DATALOADER.NUM_WORKERS = 16
+    cfg.MODEL.ROI_HEADS.IMS_PER_BATCH = 7
 
 if __name__ == "__main__":
     setup_logger()
     # register dataset
-    annotation_location = os.path.join('.', 'dataset', 'annotations','5200-5229.json')
+    annotation_location = os.path.join('.', 'dataset', 'annotations','5200-5244.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
     test_annot_location = os.path.join('.', 'dataset', 'annotations','5311-5320.json')
@@ -29,6 +33,8 @@ if __name__ == "__main__":
     cfg.merge_from_file("detectron2/configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
 
     cfg.DATASETS.TRAIN = ("cater",)
+    cfg.DATASETS.TEST = ("cater_test",)
+    cfg.TEST.EVAL_PERIOD = 50
     cfg.DATALOADER.NUM_WORKERS = 6
 
     cfg.MODEL.WEIGHTS = "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl"
@@ -37,11 +43,14 @@ if __name__ == "__main__":
     #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
     # E.g., a common configuration is: 512 * 16 = 8192
     # number of ROI per image
-    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 30
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 50
 
     cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.SOLVER.MAX_ITER = 5000
     cfg.SOLVER.BASE_LR = 0.01
+    
+    if os.path.expanduser('~').split('/')[-1] == 'group1':
+        train_on_server(cfg)
 
     cfg.OUTPUT_DIR = "output"
     if input("print configurations? ") == 'y':
@@ -53,16 +62,14 @@ if __name__ == "__main__":
 
     if input("continue to evaluate? ") == 'y':
         cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05
-        cfg.DATASETS.TEST = ("cater_test",)
         cfg.TEST.AUG.ENABLED = False
         # cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
         trainer.resume_or_load(resume=True) # fixed 0 AP error
-        # cfg.TEST.EVAL_PERIOD = 50
         # model = trainer.build_model(cfg) ## build_model does not load any weight from cfg, causing AP = 0!
         # res = trainer.test(cfg, model, evaluators=COCOEvaluator("cater",distributed=False))
         ## equivalent way for evaluation
-        evaluator = COCOEvaluator("cater_test")
-        val_loader = build_detection_test_loader(cfg, "cater_test")
+        evaluator = COCOEvaluator("cater")
+        val_loader = build_detection_test_loader(cfg, "cater")
         inference_on_dataset(trainer.model, val_loader, evaluator)
 
     if input("continue to predict? ") == 'y':
