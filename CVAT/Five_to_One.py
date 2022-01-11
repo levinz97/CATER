@@ -1435,26 +1435,30 @@ class Five_to_one:
 
 if __name__ == "__main__":
     
-    start = 5252
+    start = 5250
     end = 5254
 
     output_path = d_data_path= './d_data/{}-{}.json'.format(start,end)
     fto = Five_to_one()
 
     for i in range(start,int(end+1)):
-        c_data_path = './c_data/done/{}/annotations/instances_default.json'.format(str(i))
-        input_path = c_data_path
+        try:
+            c_data_path = './c_data/done/{}/annotations/instances_default.json'.format(str(i))
+            input_path = c_data_path
 
-        json_path = './json/CATER_new_00{}.json'.format(str(i))
-        d_data_path= './d_data/CATER_new_00{}.json'.format(str(i))
+            json_path = './json/CATER_new_00{}.json'.format(str(i))
+            d_data_path= './d_data/CATER_new_00{}.json'.format(str(i))
+            
+            data = Data(c_data_path, json_path, d_data_path)
+            data.check()
+            data.relabel()
+            data.save()
+            print(2*'>>>>>>>>>'+json_path+'check finish')
         
-        data = Data(c_data_path, json_path, d_data_path)
-        data.check()
-        data.relabel()
-        data.save()
-        print(2*'>>>>>>>>>'+json_path+'check finish')
-    
-        fto.add_images_and_annotations(input_path)
-        fto.recheck_label()
-        fto.save(output_path)
-        print('success!!!')
+            fto.add_images_and_annotations(input_path)
+            fto.recheck_label()
+            fto.save(output_path)
+            print('success!!!')
+
+        except FileNotFoundError:
+            pass
