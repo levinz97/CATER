@@ -1414,19 +1414,19 @@ class Merge_all:
 
     def merge_consist(self, start: int, end: int):
         
-        output_path = './{}-{}.json'.format(start,end)
+        output_path = './d_data/{}-{}.json'.format(start,end)
         for i in range(start,int(end-3),5):
             input_path = './d_data/{}-{}.json'.format(str(i),str(int(i+4)))
             self.add_images_and_annotations(input_path)
             self.save(output_path)
-            print(2*'>>>>>>>>>'+'merge finish')
+            print(2*'>>>>>>>>>'+'.{}-{}.json '.format(str(i),str(int(i+4)))+'merge finish')
             print('success!!!')
 
     def merge_arbitrary(self, file1_start: int, file1_end: int, file2_start: int, file2_end: int):
         
         input_path1 = './d_data/{}-{}.json'.format(str(file1_start),str(file1_end))
         input_path2 = './d_data/{}-{}.json'.format(str(file2_start),str(file2_end))
-        output_path = './{}-{}.json'.format(file1_start,file2_end)
+        output_path = './d_data/{}-{}.json+{}-{}.json'.format(file1_start,file1_end,file2_start,file2_end)
         
         self.add_images_and_annotations(input_path1)
         self.add_images_and_annotations(input_path2)
@@ -1439,12 +1439,10 @@ if __name__ == "__main__":
     
     ma = Merge_all()
     
-    '''
     # always 5 files as a unit
     # if start with '5200-5204.json' and end with '5205-5209.json'
-    ma.merge_consist(start=5200, end=5224)
+    #ma.merge_consist(start=5301, end=5330)
 
-    '''
     # if some files are missed before, then use this code to merge them
     # e.g. if file1 = '5215-5240.json'
-    ma.merge_arbitrary(file1_start=5200, file1_end=5204, file2_start= 5215, file2_end= 5219)
+    ma.merge_arbitrary(file1_start=5200, file1_end=5254, file2_start= 5301, file2_end= 5330)

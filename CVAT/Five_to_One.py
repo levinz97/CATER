@@ -1412,17 +1412,37 @@ class Five_to_one:
         output_file = open(output_path, 'w', encoding = 'UTF-8')
         output_file.write(output)
         output_file.close()
+    
+    def recheck_label(self):
+        
+        annotations_length = len(self.final['annotations'])
+        
+        for annotation_num in range(annotations_length):
+
+            shape = self.final['annotations'][annotation_num]['attributes']['shape']
+            color = self.final['annotations'][annotation_num]['attributes']['color']
+            size = self.final['annotations'][annotation_num]['attributes']['size']
+            material = self.final['annotations'][annotation_num]['attributes']['material']
+
+            new_label = shape+'_'+color+'_'+size+'_'+material
+
+            for category in self.final['categories']: 
+                if new_label == category['name']:
+                    category_id = category['id']
+                    self.final['annotations'][annotation_num]['category_id'] = category_id
+                else:
+                    pass
 
 if __name__ == "__main__":
     
-    start = 5240
-    end = 5244
+    start = 5252
+    end = 5254
 
     output_path = d_data_path= './d_data/{}-{}.json'.format(start,end)
     fto = Five_to_one()
 
     for i in range(start,int(end+1)):
-        c_data_path = './c_data/{}/annotations/instances_default.json'.format(str(i))
+        c_data_path = './c_data/done/{}/annotations/instances_default.json'.format(str(i))
         input_path = c_data_path
 
         json_path = './json/CATER_new_00{}.json'.format(str(i))
@@ -1430,10 +1450,11 @@ if __name__ == "__main__":
         
         data = Data(c_data_path, json_path, d_data_path)
         data.check()
-        data.final_relabel()
+        data.relabel()
         data.save()
-        print(2*'>>>>>>>>>'+'json check finish')
+        print(2*'>>>>>>>>>'+json_path+'check finish')
     
         fto.add_images_and_annotations(input_path)
+        fto.recheck_label()
         fto.save(output_path)
         print('success!!!')
