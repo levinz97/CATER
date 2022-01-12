@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional
 from detectron2.layers import ShapeSpec
+from detectron2.layers.wrappers import cat
 from detectron2.modeling.poolers import ROIPooler
 from detectron2.modeling.roi_heads import select_foreground_proposals
 
@@ -7,6 +8,7 @@ from detectron2.modeling.roi_heads import StandardROIHeads, ROI_HEADS_REGISTRY
 
 from detectron2.structures import ImageList, Instances
 import torch
+from torch import nn
 
 from coordinate_head import (
     build_coordinate_head,
@@ -36,7 +38,9 @@ class CaterROIHeads(StandardROIHeads):
         pass
 
     def _init_coordinate_head(self, cfg, input_shape):
-        coordinate_in_features  = self.in_features
+        self.use_backbone_features = cfg.MODEL.ROI_COORDINATE_HEAD.USE_BACKBONE_FEATURES
+        self.img_size = cfg.MODEL.ROI_COORDINATE_HEAD.IMG_SIZE
+        coordinate_in_features  = self.in_features if self.use_backbone_features else None
         # coordinate_in_features           = cfg.MODEL.ROI_COORDINATE_HEAD.IN_FEATURES
         coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_RESOLUTION
         coordinate_pooler_sampling_ratio = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_SAMPLING_RATIO
@@ -50,8 +54,9 @@ class CaterROIHeads(StandardROIHeads):
         )
         
         in_channels = [input_shape[f].channels for f in coordinate_in_features][0]
-        shape = ShapeSpec()
-        self.coordinate_head = build_coordinate_head(cfg, shape)
+        if not self.use_backbone_features:
+            assert in_channels==6, in_channels
+        self.coordinate_head = build_coordinate_head(cfg, in_channels)
 
     
     def _forward_color_material(self, features: Dict[str, torch.Tensor], instances: List[Instances]):
@@ -81,18 +86,25 @@ class CaterROIHeads(StandardROIHeads):
         """
         features_list = [features[f] for f in self.in_features]
         if self.training:
-            proposals, _ = select_foreground_proposals(instances, self.num_classes)
-            if len(proposals) > 0:
-                proposal_boxes = [x.proposal_boxes for x in proposals]
-                features_coord = self.coordinate_pooler(features_list, proposal_boxes)
+            if self.use_backbone_features:
+                proposals, _ = select_foreground_proposals(instances, self.num_classes)
+                if len(proposals) > 0:
+                    proposal_boxes = [x.proposal_boxes for x in proposals]
+                    features_coord = self.coordinate_pooler(features_list, proposal_boxes)
 
+                    features_coord = cat([])
+            else:
+
+                resized_img = nn.functional.interpolate(images,size=self.img_size,mode='bilinear')
+                features_coord = 
+                
 
 
             # return loss
             pass
         else:
             # return instances
-            pass
+            raise NotImplementedError("Not implemented")
 
     def forward(
         self,

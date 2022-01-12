@@ -23,10 +23,10 @@ def train_on_server(cfg:CfgNode):
 if __name__ == "__main__":
     setup_logger()
     # register dataset
-    annotation_location = os.path.join('.', 'dataset', 'annotations','5200-5254_5301-5335.json')
+    annotation_location = os.path.join('.', 'dataset', 'annotations','5200-5264_5301-5341.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
-    test_annot_location = os.path.join('.', 'dataset', 'annotations','5301-5335.json')
+    test_annot_location = os.path.join('.', 'dataset', 'annotations','5301-5353.json')
     test_img_folder = os.path.join('.', 'dataset', 'images','test_image')
     register_cater_dataset.register_dataset(dataset_name='cater_test', annotations_location=test_annot_location, image_folder=test_img_folder)
     # set configuration file
@@ -62,17 +62,17 @@ if __name__ == "__main__":
         trainer.resume_or_load(resume=False)
         trainer.train()
 
-    # if input("continue to evaluate? ") == 'y':
-    #     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05
-    #     cfg.TEST.AUG.ENABLED = False
-    #     # cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
-    #     trainer.resume_or_load(resume=True) # fixed 0 AP error
-    #     # model = trainer.build_model(cfg) ## build_model does not load any weight from cfg, causing AP = 0!
-    #     # res = trainer.test(cfg, model, evaluators=COCOEvaluator("cater",distributed=False))
-    #     ## equivalent way for evaluation
-    #     evaluator = COCOEvaluator("cater_test")
-    #     val_loader = build_detection_test_loader(cfg, "cater_test")
-    #     inference_on_dataset(trainer.model, val_loader, evaluator)
+    if input("continue to evaluate? ") == 'y':
+        cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05
+        cfg.TEST.AUG.ENABLED = False
+        # cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
+        trainer.resume_or_load(resume=True) # fixed 0 AP error
+        # model = trainer.build_model(cfg) ## build_model does not load any weight from cfg, causing AP = 0!
+        # res = trainer.test(cfg, model, evaluators=COCOEvaluator("cater",distributed=False))
+        ## equivalent way for evaluation
+        evaluator = COCOEvaluator("cater_test")
+        val_loader = build_detection_test_loader(cfg, "cater_test")
+        inference_on_dataset(trainer.model, val_loader, evaluator)
 
     # if input("continue to predict? ") == 'y':
     #     warnings.filterwarnings('ignore')
