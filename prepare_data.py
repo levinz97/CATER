@@ -5,6 +5,10 @@ from time import time
 from non_maximum_suppression import non_max_suppression
 from utils import dispImg, getRectFromUserSelect
 import os
+from detectron2.config import get_cfg
+from detectron2.engine import DefaultPredictor
+from detectron2.utils.visualizer import ColorMode, Visualizer, GenericMask
+
 class PrepareData:
     def __init__(self, need_visualization=True):
         self.display_process = need_visualization
@@ -13,6 +17,15 @@ class PrepareData:
         self.display_subregionGrabCut = False
         self.allow_user_select_rect = True
         self.allow_iterative_refinement = True
+        self.use_detectron = True
+        cfg = get_cfg()
+        cfg.merge_from_file("detectron2/configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
+        cfg.OUTPUT_DIR = os.path.join("output", "best")
+        cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
+        cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
+        cfg.MODEL.ROI_HEADS.NUM_CLASSES = 270
+
+        self.detectron = DefaultPredictor(cfg)
     def save_image(self):
         vidcap = cv2.VideoCapture("./raw_data/all_action_camera_move/videos/CATER_new_005748.avi")
         success, image = vidcap.read()
@@ -26,13 +39,43 @@ class PrepareData:
             chr = cv2.waitKey(10)
             if chr == 'q':
                 break
+    def presegmentWithDetectron(self, raw_img):
+        img = raw_img.copy()
+        pred = self.detectron(img)
+        pred = pred["instances"].to("cpu")
+        print(f"there are totally {len(pred)} instances detected")
+        contours = []
+        refine_area_list = []
+        bbox_list = []
+        attr_list = []
+        for i in range(len(pred)):
+            mask = np.squeeze(np.asarray(pred[i].pred_masks))
+            screen = np.zeros(img.shape)
+            vis = Visualizer(screen, instance_mode = ColorMode.IMAGE)
+            screen = vis.draw_binary_mask(mask).get_image()
+            screen = cv2.cvtColor(screen, cv2.COLOR_BGR2GRAY)
+            res_img = cv2.bitwise_and(img, img, mask=screen)
+            # dispImg("detectron2", screen, kill_window=False)
+            # dispImg("detectron2", res_img, kill_window=False)
+            _contours, _, _bbox_list, _attr_list = self.getContoursFromSegmentedImg(res_img)
+            contours += _contours
+            bbox_list += _bbox_list
+            attr_list += _attr_list
+
+        return contours, refine_area_list, bbox_list, attr_list
+
 
     """main method to get bbox and contour from raw image"""
-    def getContoursWithBbox(self, raw_img):
+    def getContoursWithBbox(self, raw_img, first_segment = 'detectron'):
         r'wrap function to preform presegmetImg then iteratively refined with grabCut, input: raw image -> contours, bbox, attr_list: list [area, avg_hsv, avg_rgb, center of contour]'
         img = raw_img.copy()
-        img = self.presegmentImg(img, method='grabcut')
-        contours, refine_area_list, bbox_list, attr_list = self.getContoursFromSegmentedImg(img)
+        if first_segment == 'grabcut':
+            img = self.presegmentImg(img, method='grabcut')
+            contours, refine_area_list, bbox_list, attr_list = self.getContoursFromSegmentedImg(img)
+        elif first_segment == 'detectron':
+            contours, refine_area_list, bbox_list, attr_list = self.presegmentWithDetectron(img)
+        else:
+            raise ValueError(f"no method for {first_segment}, choose grabcut or detectron")
 
         # refine the wrong segmented region with iterative grabCut
         def refineWithIterativeMethod(img, contours, refine_area_list, bbox_list, attr_list, max_iterative_cnt = 6):
@@ -80,7 +123,7 @@ class PrepareData:
                 refine_area_list = tmp_refine_list
             return contours, refine_area_list, bbox_list, attr_list
 
-        if self.allow_iterative_refinement:
+        if self.allow_iterative_refinement and not self.use_detectron :
             contours, refine_area_list, bbox_list, attr_list = refineWithIterativeMethod(raw_img, contours, refine_area_list, bbox_list, attr_list)
 
         if self.allow_user_select_rect and self.display_result:
@@ -466,7 +509,7 @@ def main():
         # pd.presegmentImg(img,method='kmeans')
         # pd.presegmentImg(img,type='HSV',method='threshold')
 
-        contours, bbox_list, attr_list = pd.getContoursWithBbox(raw_img)
+        contours, bbox_list, attr_list = pd.getContoursWithBbox(raw_img, first_segment='detectron')
         print(contours)
         print(bbox_list) # bbox format XYWH
         print(attr_list) # hsv, rgb, centerXY
