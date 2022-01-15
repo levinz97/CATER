@@ -28,7 +28,7 @@ if __name__ == "__main__":
     annotation_location = os.path.join('.', 'dataset', 'annotations','5200-5299_5301-5365.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
-    test_annot_location = os.path.join('.', 'dataset', 'annotations','5356-5360.json')
+    test_annot_location = os.path.join('.', 'dataset', 'annotations','5400-5406.json')
     test_img_folder = os.path.join('.', 'dataset', 'images','test_image')
     register_cater_dataset.register_dataset(dataset_name='cater_test', annotations_location=test_annot_location, image_folder=test_img_folder)
     # set configuration file
@@ -75,7 +75,7 @@ if __name__ == "__main__":
         if input("continue to evaluate? ") == 'y':
             cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.01
             cfg.TEST.AUG.ENABLED = False
-            cfg.OUTPUT_DIR = "output/12.01"
+            cfg.OUTPUT_DIR = "output/14-01_00:23"
             cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
             trainer = DefaultTrainer(cfg)
             trainer.resume_or_load(resume=False) # fixed 0 AP error

@@ -5,6 +5,7 @@ from time import time
 from non_maximum_suppression import non_max_suppression
 from utils import dispImg, getRectFromUserSelect
 import os
+import torch
 from detectron2.config import get_cfg
 from detectron2.engine import DefaultPredictor
 from detectron2.utils.visualizer import ColorMode, Visualizer, GenericMask
@@ -22,10 +23,11 @@ class PrepareData:
         cfg.merge_from_file("detectron2/configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
         cfg.OUTPUT_DIR = os.path.join("output", "best")
         cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
+        assert os.path.isfile(cfg.MODEL.WEIGHTS), f'{cfg.MODEL.WEIGHTS} is not a file'
         cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
         cfg.MODEL.ROI_HEADS.NUM_CLASSES = 270
-
         self.detectron = DefaultPredictor(cfg)
+
     def save_image(self):
         vidcap = cv2.VideoCapture("./raw_data/all_action_camera_move/videos/CATER_new_005748.avi")
         success, image = vidcap.read()
@@ -48,6 +50,7 @@ class PrepareData:
         refine_area_list = []
         bbox_list = []
         attr_list = []
+        pred_classes = []
         for i in range(len(pred)):
             mask = np.squeeze(np.asarray(pred[i].pred_masks))
             screen = np.zeros(img.shape)
@@ -61,19 +64,23 @@ class PrepareData:
             contours += _contours
             bbox_list += _bbox_list
             attr_list += _attr_list
+            class_idx  = pred[i].pred_classes
+            pred_classes.append(int(torch.squeeze(class_idx)))
 
-        return contours, refine_area_list, bbox_list, attr_list
+
+        return contours, refine_area_list, bbox_list, attr_list, pred_classes
 
 
     """main method to get bbox and contour from raw image"""
     def getContoursWithBbox(self, raw_img, first_segment = 'detectron'):
         r'wrap function to preform presegmetImg then iteratively refined with grabCut, input: raw image -> contours, bbox, attr_list: list [area, avg_hsv, avg_rgb, center of contour]'
         img = raw_img.copy()
+        pred_classes = []
         if first_segment == 'grabcut':
             img = self.presegmentImg(img, method='grabcut')
             contours, refine_area_list, bbox_list, attr_list = self.getContoursFromSegmentedImg(img)
         elif first_segment == 'detectron':
-            contours, refine_area_list, bbox_list, attr_list = self.presegmentWithDetectron(img)
+            contours, refine_area_list, bbox_list, attr_list, pred_classes = self.presegmentWithDetectron(img)
         else:
             raise ValueError(f"no method for {first_segment}, choose grabcut or detectron")
 
@@ -137,7 +144,7 @@ class PrepareData:
 
         print("\n","<<"*50,f"Final Number of detected contours: {len(contours)}","<<"*10)
         
-        return contours, bbox_list, attr_list
+        return contours, bbox_list, attr_list, pred_classes
 
     def presegmentImg(self, img, type='BGR', method='grabcut'): 
         'try to segment image with or different conventional / unsupervised approach'   
@@ -401,12 +408,14 @@ class PrepareData:
         # attr_list: list [area, avg_hsv, avg_rgb, center of contour]
         return contours, refine_area_list, bbox_list, attr_list
 
-    def _dispAllContours(self, img, contours, bbox_list, close_all_windows_afterwards = True, on_press=None):
+    def _dispAllContours(self, img, contours, bbox_list, close_all_windows_afterwards = True, on_press=None, text_to_print=None):
         screen = np.zeros(img.shape[0:-1])
         all_shapes = cv2.drawContours(screen,contours,-1,255,cv2.FILLED) # disp shape: cv2.FILLED, disp contour: 1
         shape_mask = np.array(all_shapes,dtype=np.uint8)
         crop_shape = cv2.bitwise_and(img,img, mask=shape_mask) # crop the shape of object from img
         crop_shape = self._drawBboxOnImg(crop_shape, bbox_list)
+        if text_to_print is not None:
+            cv2.putText(crop_shape,text_to_print,(10,50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
         dispImg("all cropped img",crop_shape,kill_window=close_all_windows_afterwards, on_press=on_press)
         print(f'number of valid contours is {len(contours)}')
@@ -509,7 +518,7 @@ def main():
         # pd.presegmentImg(img,method='kmeans')
         # pd.presegmentImg(img,type='HSV',method='threshold')
 
-        contours, bbox_list, attr_list = pd.getContoursWithBbox(raw_img, first_segment='detectron')
+        contours, bbox_list, attr_list, pred_classes= pd.getContoursWithBbox(raw_img, first_segment='detectron')
         print(contours)
         print(bbox_list) # bbox format XYWH
         print(attr_list) # hsv, rgb, centerXY
