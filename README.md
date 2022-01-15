@@ -3,15 +3,25 @@
 use the following command to connect to server, password required (provided in the email) if not using SSH key
 
 sh ./connect_server.sh
+## Requirements
 
+1. Detectron2
 
-### directory_format:
+2. Pytorch
+
+3. opencv-contrib
+
+4. matplotlib
+
+## directory_format:
 
 ```
 .
 ├── *detectron2 -> /<Your Dir For Detectron2>/ 
 ├── jupyter-notebook
 ├── *output
+│   └── *best
+│    └── *model_final.pth
 ├── *dataset
 │   ├── annotations
 │   └── images

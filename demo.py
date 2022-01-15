@@ -25,7 +25,7 @@ def train_on_server(cfg:CfgNode):
 if __name__ == "__main__":
     setup_logger()
     # register dataset
-    annotation_location = os.path.join('.', 'dataset', 'annotations','5200-5269_5301-5353.json')
+    annotation_location = os.path.join('.', 'dataset', 'annotations','5200-5299_5301-5365.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
     test_annot_location = os.path.join('.', 'dataset', 'annotations','5356-5360.json')
@@ -51,8 +51,8 @@ if __name__ == "__main__":
     cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.SOLVER.MAX_ITER = 3000
     cfg.SOLVER.WARMUP_ITERS = 500
-    cfg.SOLVER.STEPS = (1200,)
-    cfg.SOLVER.BASE_LR = 0.001
+    cfg.SOLVER.STEPS = (1400, 2400)
+    cfg.SOLVER.BASE_LR = 0.005
 
     on_server  = False
     if os.path.expanduser('~').split('/')[-1] == 'group1':
@@ -78,7 +78,7 @@ if __name__ == "__main__":
             cfg.OUTPUT_DIR = "output/12.01"
             cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
             trainer = DefaultTrainer(cfg)
-            trainer.resume_or_load(resume=True) # fixed 0 AP error
+            trainer.resume_or_load(resume=False) # fixed 0 AP error
             # model = trainer.build_model(cfg) ## build_model does not load any weight from cfg, causing AP = 0!
             # res = trainer.test(cfg, model, evaluators=COCOEvaluator("cater",distributed=False))
             ## equivalent way for evaluation
@@ -98,8 +98,8 @@ if __name__ == "__main__":
             test_img_pred = predictor(test_img)
             pred = test_img_pred["instances"].to("cpu")
             print(f"there are totally {len(pred)} instances detected")
+            
             import json 
-
             class_catalog = []
             with open(cater_metadata.json_file, "r", encoding='utf-8') as f:
                 data = json.load(f)
@@ -110,7 +110,9 @@ if __name__ == "__main__":
                             metadata=cater_metadata,
                             instance_mode=ColorMode.IMAGE_BW)
                 v = vis.draw_instance_predictions(pred[item])
+                class_idx  = pred[item].pred_classes
+                class_name = class_catalog[int(torch.squeeze(class_idx)) + 1] # pred_classes starts from 0, in json from 1
+                print(f"{class_name}")
+                v = vis.draw_text(f"{class_name}", position=(100,0))
                 img = v.get_image()[:, :, ::-1]
                 dispImg("prediction", img, kill_window=True)
-                class_idx = pred[item].pred_classes
-                print(f"{class_catalog[int(torch.squeeze(class_idx))]}")

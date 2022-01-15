@@ -1,9 +1,13 @@
 {
-    "finished_secdir": [],
+    "finished_secdir": [
+        "005200-005299_sort",
+        "005300-005399_sort"
+    ],
     "finished_thirdir": [
         "CATER_new_005200",
         "CATER_new_005201",
-        "CATER_new_005202"
+        "CATER_new_005202",
+        "CATER_new_005400"
     ],
-    "current_dir": "CATER_new_005203"
+    "current_dir": "CATER_new_005401"
 }
