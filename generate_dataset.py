@@ -23,6 +23,15 @@ class GenerateDataset:
         if reset_logger:
             self.status_logger.reset_logger()
 
+        import json 
+        class_catalog = []
+        json_annotation = os.path.join('.', 'dataset','annotations','5400-5406.json')
+        assert os.path.exists(json_annotation), 'Annotation does not exist'
+        with open(json_annotation, "r", encoding='utf-8') as f:
+            data = json.load(f)
+            class_catalog = data["categories"]
+        self.class_catalog = dict((i['id']-1, i['name']) for i in class_catalog) # starts from 0
+
     @staticmethod
     def getFullFilenum(filenum):
         while len(filenum) < 6:
@@ -47,7 +56,7 @@ class GenerateDataset:
         return raw_img, filenum
     
     def getDict(self, raw_img, filenum: int):
-        contours, bbox_list, attr_list = self.pd.getContoursWithBbox(raw_img)
+        contours, bbox_list, attr_list, pred_classes = self.pd.getContoursWithBbox(raw_img)
         attr_val = []
         hsv_list = []
         center_list = []
@@ -113,7 +122,13 @@ class GenerateDataset:
             screen = raw_img.copy()
             # self.pd._drawBboxOnImg(screen, b)
             # dispImg("raw",screen)
-            self.pd._dispAllContours(screen, [c], b, on_press=press)
+            if cnt in range(len(pred_classes)):
+                cls_name = self.class_catalog[pred_classes[cnt]]
+                shape_name = cls_name.split('_')[0]
+                print(f"prediction from detectron is {cls_name}")
+                print(f"the predicted shape is {shape_name}")
+                tmp_shape_list = [shape_name]
+            self.pd._dispAllContours(screen, [c], b, on_press=press, text_to_print=tmp_shape_list[0])
             if np.sum(keep) > 0:
                 print("annotation saved")
                 if len(tmp_shape_list) > 0:
