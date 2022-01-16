@@ -14,9 +14,9 @@ def coordinate_loss(pred_coordinate3d, instances):
     return {"coordinate_loss": torch.square(diff).sum()}
 
 @ROI_COORDINATE_HEAD_REGISTRY.register()
-class coordinateHead(torch.Module):
+class coordinateHead(torch.nn.Module):
     """
-    A Fully convolutional coordinate head, apply average pooling at last to get 3d coordinate
+    A Fully convolutional coordinate head except applying average pooling at last to get 3d coordinate
     """
     def __init__(self, cfg: CfgNode, input_channels: int):
         super().__init__()
