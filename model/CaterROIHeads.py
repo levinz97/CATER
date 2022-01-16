@@ -100,7 +100,7 @@ class CaterROIHeads(StandardROIHeads):
             toImg = ttf.ToPILImage()
             # _resized_img = toImg(_resized_img)
             img = _resized_img.permute(1,2,0).numpy()[:,:, ::-1]
-            img += np.asarray(self.pixel_mean)
+            # img += np.asarray(self.pixel_mean)
             dispImg("resized_img", img)
 
                         

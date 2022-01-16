@@ -14,8 +14,9 @@ import os
 from datetime import datetime
 from model import CaterROIHeads
 from config.cater_config import add_cater_config
-import register_cater_dataset
+from data import register_cater_dataset
 from utils import dispImg
+from cater_trainer import CaterTrainer
 
 def train_on_server(cfg:CfgNode):
     cfg.DATALOADER.NUM_WORKERS = 16
@@ -68,6 +69,6 @@ if __name__ == "__main__":
     output_dir = datetime.today().strftime('%d-%m_%H:%M')
     cfg.OUTPUT_DIR = "output/{}".format(output_dir)
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-    trainer = DefaultTrainer(cfg)
+    trainer = CaterTrainer(cfg)
     trainer.resume_or_load(resume=False)
     trainer.train()
