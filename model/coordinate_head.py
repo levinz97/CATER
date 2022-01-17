@@ -10,8 +10,9 @@ from .layers import conv_bn_relu
 ROI_COORDINATE_HEAD_REGISTRY = Registry('ROI_COORDINATE_HEAD_REGISTRY')
 
 def coordinate_loss(pred_coordinate3d, instances):
-    diff = pred_coordinate3d - cat([x.gt_coordinate for x in instances])
-    return {"coordinate_loss": torch.square(diff).sum()}
+    coordinate3d = cat([x.gt_coordinate for x in instances])
+    diff = pred_coordinate3d - coordinate3d
+    return {"coordinate_loss": torch.square(diff).mean()}
 
 @ROI_COORDINATE_HEAD_REGISTRY.register()
 class coordinateHead(torch.nn.Module):
