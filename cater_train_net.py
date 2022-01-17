@@ -15,7 +15,6 @@ from datetime import datetime
 from model import CaterROIHeads
 from config.cater_config import add_cater_config
 from data import register_cater_dataset
-from utils import dispImg
 from cater_trainer import CaterTrainer
 
 def train_on_server(cfg:CfgNode):
@@ -38,8 +37,8 @@ if __name__ == "__main__":
     add_cater_config(cfg)
     cfg.merge_from_file("config/Cater.yaml")
 
-    cfg.DATASETS.TRAIN = ("cater",)
-    cfg.DATASETS.TEST = ("cater_test",)
+    # TODO: add evaluator for cater 
+    cfg.DATASETS.TEST = ()
     # cfg.TEST.EVAL_PERIOD = 80 # need to define hooks for evaluation
     cfg.DATALOADER.NUM_WORKERS = 6
 
@@ -52,10 +51,7 @@ if __name__ == "__main__":
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 50
 
     cfg.SOLVER.IMS_PER_BATCH = 2
-    cfg.SOLVER.MAX_ITER = 3000
     cfg.SOLVER.WARMUP_ITERS = 500
-    cfg.SOLVER.STEPS = (1400, 2400)
-    cfg.SOLVER.BASE_LR = 0.01
 
     on_server  = False
     if os.path.expanduser('~').split('/')[-1] == 'group1':
