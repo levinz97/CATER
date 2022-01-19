@@ -16,4 +16,4 @@ def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, padding
     if use_relu:
         layers.append(nn.LeakyReLU(0.01, inplace=True))
 
-    return layers
+    return nn.Sequential(*layers)

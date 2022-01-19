@@ -1,5 +1,5 @@
 from detectron2.config.config import CfgNode
-import register_cater_dataset
+from data import register_cater_dataset
 from utils import dispImg
 
 from detectron2.config import get_cfg

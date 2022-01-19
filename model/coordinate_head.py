@@ -10,13 +10,14 @@ from .layers import conv_bn_relu
 ROI_COORDINATE_HEAD_REGISTRY = Registry('ROI_COORDINATE_HEAD_REGISTRY')
 
 def coordinate_loss(pred_coordinate3d, instances):
-    diff = pred_coordinate3d - cat([x.gt_coordinate for x in instances])
-    return {"coordinate_loss": torch.square(diff).sum()}
+    coordinate3d = cat([x.gt_coordinate for x in instances])
+    diff = pred_coordinate3d - coordinate3d
+    return {"coordinate_loss": torch.square(diff).mean()}
 
 @ROI_COORDINATE_HEAD_REGISTRY.register()
-class coordinateHead(torch.Module):
+class coordinateHead(torch.nn.Module):
     """
-    A Fully convolutional coordinate head, apply average pooling at last to get 3d coordinate
+    A Fully convolutional coordinate head except applying average pooling at last to get 3d coordinate
     """
     def __init__(self, cfg: CfgNode, input_channels: int):
         super().__init__()
