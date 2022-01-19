@@ -27,7 +27,7 @@ class coordinateHead(torch.nn.Module):
         padding = kernel_size // 2
         for i in range(self.n_stacked_convs):
             # use custom layer instead of detectron2 wrapper layer due to compatible reason 
-            layer = conv_bn_relu(input_channels * (2**i), input_channels * (2**(i+1)), kernel_size, stride=1, padding = padding )
+            layer = conv_bn_relu(input_channels * (2**i), input_channels * (2**(i+1)), kernel_size, stride=2, padding = padding )
             layer_name = self._name_layers(i)
             self.add_module(layer_name, layer)
         # self.conv_bn_relu_last = conv_bn_relu(input_channels, 3, kernel_size=1)
