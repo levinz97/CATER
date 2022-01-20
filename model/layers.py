@@ -1,7 +1,7 @@
 from torch import nn
 
 
-def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, padding=0, use_bn=True, use_relu=True):
+def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilation=1, padding=0, use_bn=True, use_relu=True):
     layers = []
     layers.append(
         nn.Conv2d(input_channels,
@@ -9,6 +9,7 @@ def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, padding
                   kernel_size,
                   stride,
                   padding,
+                  dilation=dilation,
                   bias=not use_bn)
     )
     if use_bn:
