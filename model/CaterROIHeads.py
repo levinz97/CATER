@@ -11,6 +11,7 @@ from detectron2.structures import ImageList, Instances
 import torch
 from torch import nn
 
+from.layers import Decoder
 from .coordinate_head import (
     build_coordinate_head,
     coordinate_loss
@@ -49,26 +50,35 @@ class CaterROIHeads(StandardROIHeads):
         coordinate_in_features     = cfg.MODEL.ROI_COORDINATE_HEAD.IN_FEATURES if self.use_backbone_features else None
         self.img_size              = cfg.MODEL.ROI_COORDINATE_HEAD.IMG_SIZE
         self.hide_img_size         = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE
-        if not self.use_backbone_features:
-            in_channels = 6 # raw image 3 + cropped image within bbox 3
-            coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE
-            coordinate_pooler_sampling_ratio = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_SAMPLING_RATIO
-            coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE
-            coordinate_pooler_scale          = tuple([1]) # on raw image
-        else:
-            coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_RESOLUTION
-            coordinate_pooler_sampling_ratio = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_SAMPLING_RATIO
-            coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE
-            coordinate_pooler_scale  = [0.5]
-            coordinate_pooler_scale += [1.0 / input_shape[k].stride for k in coordinate_in_features]
-           
-            in_channels = [input_shape[f].channels for f in coordinate_in_features][0]
+        in_channels = 6 # raw image 3 + cropped image within bbox 3
+        img_coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE
+        img_coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE
+        img_coordinate_pooler_sampling_ratio = 0
+        img_coordinate_pooler_scale          = [1] # on raw image
+        
+        if self.use_backbone_features:
+            bb_coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_RESOLUTION
+            bb_coordinate_pooler_sampling_ratio = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_SAMPLING_RATIO
+            bb_coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE
+            bb_coordinate_pooler_scale = [1.0 / input_shape[k].stride for k in coordinate_in_features]
+            decoder_in_channels = [input_shape[f].channels for f in coordinate_in_features][0]
+            channel_decrease_ratio = 6 # 2^ratio
+            decoder_out_channels = decoder_in_channels // (2**channel_decrease_ratio)
+            in_channels += decoder_out_channels
+            # decoder to decrease the number of channels from backbones' features, and upsample it 
+            self.bb_decoder = Decoder(decoder_in_channels, channel_decrease_ratio, use_upsample=True)
+            self.bb_coordinate_pooler = ROIPooler(
+                output_size=bb_coordinate_pooler_resolution,
+                scales=bb_coordinate_pooler_scale,
+                sampling_ratio=bb_coordinate_pooler_sampling_ratio,
+                pooler_type=bb_coordinate_pooler_type
+            )
 
-        self.coordinate_pooler = ROIPooler(
-                output_size=coordinate_pooler_resolution,
-                scales=coordinate_pooler_scale,
-                sampling_ratio=coordinate_pooler_sampling_ratio,
-                pooler_type=coordinate_pooler_type
+        self.img_coordinate_pooler = ROIPooler(
+                output_size=img_coordinate_pooler_resolution,
+                scales=img_coordinate_pooler_scale,
+                sampling_ratio=img_coordinate_pooler_sampling_ratio,
+                pooler_type=img_coordinate_pooler_type
             )
         self.coordinate_head = build_coordinate_head(cfg, in_channels)
 
@@ -99,20 +109,26 @@ class CaterROIHeads(StandardROIHeads):
 
         """
         need_visualization = False
-        features_list = [images.tensor]
+        image_list = [images.tensor]
         if self.use_backbone_features:
-            features_list += [features[f] for f in self.in_features]
+            features_list = [features[f] for f in self.in_features]
         else:
             # dont use backbone features
             del features
+
         if self.training:
             fg_proposals, _ = select_foreground_proposals(instances, self.num_classes)
             pred_boxes = [i.proposal_boxes for i in fg_proposals]
-            coordinate_features = self.coordinate_pooler(features_list, pred_boxes)
-            resized_img = nn.functional.interpolate(images.tensor, size=self.hide_img_size, mode='bilinear')
+            coordinate_features = self.img_coordinate_pooler(image_list, pred_boxes)
+            resized_img = nn.functional.interpolate(images.tensor, size=self.hide_img_size, mode='bilinear', align_corners=False)
             if need_visualization:
                 features_to_vis = coordinate_features[0, :, :, :]
                 img_to_vis = resized_img[0, :, :, :]
+            # use additional features from backbone
+            if self.use_backbone_features:
+                    bb_features_coord = self.bb_coordinate_pooler(features_list, pred_boxes)
+                    bb_features_coord = self.bb_decoder(bb_features_coord)
+                    coordinate_features = torch.cat((coordinate_features, bb_features_coord), dim=1)
             assert self.num_fg_boxes * self.img_per_batch == coordinate_features.shape[0], coordinate_features.shape
             # first reshape coordinate_features to [img_per_batch, num_fg_boxes, *HIDE_IMG_SIZE]
             coordinate_features = coordinate_features.unsqueeze_(0).view(self.img_per_batch, self.num_fg_boxes, -1, *self.hide_img_size)
@@ -139,18 +155,8 @@ class CaterROIHeads(StandardROIHeads):
 
             pred_coordinates = self.coordinate_head(coordinate_features)
             loss_coord = coordinate_loss(pred_coordinates, fg_proposals)
-
-            if self.use_backbone_features:
-                if len(fg_proposals) > 0:
-                    proposal_boxes = [x.proposal_boxes for x in fg_proposals]
-                    features_coord = self.coordinate_pooler(features_list, proposal_boxes)
-
-                    features_coord = cat([])
-
             
             return loss_coord
-            # return loss
-            pass
         else:
             # return instances
             raise NotImplementedError("Not implemented")
