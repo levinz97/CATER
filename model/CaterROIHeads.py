@@ -138,7 +138,6 @@ class CaterROIHeads(StandardROIHeads):
             
 
             pred_coordinates = self.coordinate_head(coordinate_features)
-            pred_coordinates = torch.squeeze(pred_coordinates)
             loss_coord = coordinate_loss(pred_coordinates, fg_proposals)
 
             if self.use_backbone_features:
