@@ -26,18 +26,22 @@ class Decoder(nn.Module):
         self.n_layers = n_layers
         assert in_channels % (2**n_layers) == 0, f'in_channel = {in_channels} not divisible by {2**(n_layers)}'
         for i in range(n_layers):
-            conv = conv_bn_relu(in_channels//(2**i), in_channels//(2**(i+1)), kernel_size=3, padding=1)
-            self.add_module(f'decoder_conv{i+1}', conv)
-            if use_upsample:
+            conv1 = conv_bn_relu(in_channels//(2**i), in_channels//(2**(i+1)), kernel_size=1)
+            self.add_module(f'decoder_conv1{i+1}', conv1)
+            conv3 = conv_bn_relu(in_channels//(2**(i+1)), in_channels//(2**(i+1)), kernel_size=3, padding=1)
+            self.add_module(f'decoder_conv3{i+1}', conv3)
+            if use_upsample and i % 2 == 0:
                 upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
                 self.add_module(f'decoder_upsample{i+1}', upsample)
         
 
     def forward(self, x):
         for i in range(self.n_layers):
-            conv_name = f'decoder_conv_bn_relu{i+1}'
-            x = getattr(self, conv_name)(x)
-            if self.use_upsample:
+            conv1_name = f'decoder_conv1{i+1}'
+            x = getattr(self, conv1_name)(x)
+            conv3_name = f'decoder_conv3{i+1}'
+            x = getattr(self, conv3_name)(x)
+            if self.use_upsample and i % 2 == 0:
                 upsample_name = f'decoder_upsample{i+1}'
                 x = getattr(self, upsample_name)(x)
         return x
