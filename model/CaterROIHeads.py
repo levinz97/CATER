@@ -11,8 +11,8 @@ from detectron2.structures import ImageList, Instances
 import torch
 from torch import nn
 
-from.layers import Decoder
-from .coordinate_head import (
+from.layers import Decoder, SELayer
+from.coordinate_head import (
     build_coordinate_head,
     coordinate_loss
     )
@@ -73,6 +73,7 @@ class CaterROIHeads(StandardROIHeads):
                 sampling_ratio=bb_coordinate_pooler_sampling_ratio,
                 pooler_type=bb_coordinate_pooler_type
             )
+            self.selayer = SELayer(in_channels, reduction=2)
 
         self.img_coordinate_pooler = ROIPooler(
                 output_size=img_coordinate_pooler_resolution,
@@ -113,7 +114,7 @@ class CaterROIHeads(StandardROIHeads):
         if self.use_backbone_features:
             features_list = [features[f] for f in self.in_features]
         else:
-            # dont use backbone features
+            # do not use backbone features
             del features
 
         if self.training:
@@ -153,6 +154,7 @@ class CaterROIHeads(StandardROIHeads):
                 vis_tensor(features_to_vis, True)
             
 
+            coordinate_features = self.selayer(coordinate_features)
             pred_coordinates = self.coordinate_head(coordinate_features)
             loss_coord = coordinate_loss(pred_coordinates, fg_proposals)
             
