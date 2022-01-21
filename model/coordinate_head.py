@@ -24,10 +24,11 @@ class coordinateHead(torch.nn.Module):
         kernel_size          = cfg.MODEL.ROI_COORDINATE_HEAD.CONV_HEAD_KERNEL_SIZE
         # hidden_dim           = cfg.MODEL.ROI_COORDINATE_HEAD.CONV_HEAD_DIM  
         self.n_stacked_convs = cfg.MODEL.ROI_COORDINATE_HEAD.NUM_STACKED_CONVS
-        padding = kernel_size // 2
+        dilation             = cfg.MODEL.ROI_COORDINATE_HEAD.DILATION
+        padding = (kernel_size-1) * dilation // 2
         for i in range(self.n_stacked_convs):
             # use custom layer instead of detectron2 wrapper layer due to compatible reason 
-            layer = conv_bn_relu(input_channels * (2**i), input_channels * (2**(i+1)), kernel_size, stride=2, padding = padding )
+            layer = conv_bn_relu(input_channels * (2**i), input_channels * (2**(i+1)), kernel_size, stride=2, padding=padding, dilation=dilation)
             layer_name = self._name_layers(i)
             self.add_module(layer_name, layer)
         # self.conv_bn_relu_last = conv_bn_relu(input_channels, 3, kernel_size=1)

@@ -20,12 +20,13 @@ from cater_trainer import CaterTrainer
 def train_on_server(cfg:CfgNode):
     cfg.DATALOADER.NUM_WORKERS = 16
     cfg.SOLVER.IMS_PER_BATCH = 7
+    cfg.SOLVER.BASE_LR = 0.01
 
 
 if __name__ == "__main__":
     setup_logger()
     # register dataset
-    annotation_location = os.path.join('.', 'dataset', 'annotations','5200-5299_5301-5365.json')
+    annotation_location = os.path.join('.', 'dataset', 'annotations','01train.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
     test_annot_location = os.path.join('.', 'dataset', 'annotations','5400-5406.json')
@@ -52,6 +53,7 @@ if __name__ == "__main__":
 
     cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.SOLVER.WARMUP_ITERS = 500
+    cfg.SOLVER.BASE_LR = 0.001
 
     on_server  = False
     if os.path.expanduser('~').split('/')[-1] == 'group1':
