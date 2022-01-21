@@ -49,3 +49,10 @@ sh ./connect_server.sh
 *: must have
 
 ```
+
+3D Coordination Prediction
+
+![3d loss without FPN.png](docs/3d_loss_without_FPN.png)
+
+
+![3d loss with FPN.png](docs/3d_loss_with_FPN.png)

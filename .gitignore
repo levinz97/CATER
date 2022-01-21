@@ -1,5 +1,6 @@
 raw_data/
 *.png
+!docs/*
 jupyter-notebook/
 one_hot_key.py
 anno_28.11/
