@@ -30,7 +30,7 @@ class CoordinateNet():
 
 
     def train_net(self, model, device):
-        num_epochs = 2
+        num_epochs = 50
         model.to(device)
         loss_mse = nn.MSELoss()
         loss_mse.to(device)
@@ -56,12 +56,12 @@ class CoordinateNet():
                 coordinates = annotations['coordinates'].to(device)
                 for j in range(len(bboxes)):
                     output = model(imgs, bboxes[j])
-                    loss = loss_mse(output, coordinates[j])
+                    b = coordinates[j]
+                    b = torch.reshape(b, (-1, 3))
+                    loss = loss_mse(output, b)
                     loss_image += loss
-
                     # pred_bbox_d2 = self.detectron(imgs)
                     # loss = model(imgs, annotations, pred_bbox_d2)
-
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
@@ -73,10 +73,8 @@ class Coordinate_model(nn.Module):
     def __init__(self):
         super(Coordinate_model, self).__init__()
         self.data_transforms = transforms.Compose([
-                transforms.RandomResizedCrop(224),
-                transforms.RandomHorizontalFlip(),
-                # transforms.ToTensor(),
-                transforms.Normalize([0.485, 0.456, 0.406, 0.485, 0.456, 0.406], [0.229, 0.224, 0.225, 0.229, 0.224, 0.225])
+                transforms.Resize((224,224)),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
         self.resnet_model = torchvision.models.resnet50(pretrained=True)
         num_ftrs = self.resnet_model.fc.in_features
@@ -90,10 +88,11 @@ class Coordinate_model(nn.Module):
         idx = idx.to('cuda')
         pred_bbox_d2 = torch.cat((idx, pred_bbox_d2), dim=0)
         pred_bbox_d2 = torch.reshape(pred_bbox_d2, (-1, 5))
-        roi = torchvision.ops.roi_align(reshape_img, pred_bbox_d2, output_size=(240, 320), spatial_scale=1.0, sampling_ratio=-1)
-        new_img = torch.cat((reshape_img, roi), dim=1)
-        output = self.data_transforms(new_img)
+        roi = torchvision.ops.roi_align(reshape_img, pred_bbox_d2, output_size=(224, 224), spatial_scale=1.0, sampling_ratio=-1)
+        reshape_img = self.data_transforms(reshape_img)
+        output = torch.cat((reshape_img, roi), dim=1)
         output = self.resnet_model(output)
+        # print(output.shape)
         return output
 
 
