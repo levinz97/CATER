@@ -116,52 +116,61 @@ class CaterROIHeads(StandardROIHeads):
         else:
             # do not use backbone features
             del features
-
         if self.training:
             fg_proposals, _ = select_foreground_proposals(instances, self.num_classes)
             pred_boxes = [i.proposal_boxes for i in fg_proposals]
-            coordinate_features = self.img_coordinate_pooler(image_list, pred_boxes)
-            resized_img = nn.functional.interpolate(images.tensor, size=self.hide_img_size, mode='bilinear', align_corners=False)
-            if need_visualization:
-                features_to_vis = coordinate_features[0, :, :, :]
-                img_to_vis = resized_img[0, :, :, :]
-            # use additional features from backbone
-            if self.use_backbone_features:
-                    bb_features_coord = self.bb_coordinate_pooler(features_list, pred_boxes)
-                    bb_features_coord = self.bb_decoder(bb_features_coord)
-                    coordinate_features = torch.cat((coordinate_features, bb_features_coord), dim=1)
+        else:
+            fg_proposals = instances
+            pred_boxes = [i.pred_boxes for i in fg_proposals]
+        coordinate_features = self.img_coordinate_pooler(image_list, pred_boxes)
+        resized_img = nn.functional.interpolate(images.tensor, size=self.hide_img_size, mode='bilinear', align_corners=False)
+        if need_visualization:
+            features_to_vis = coordinate_features[0, :, :, :]
+            img_to_vis = resized_img[0, :, :, :]
+        # use additional features from backbone
+        if self.use_backbone_features:
+                bb_features_coord = self.bb_coordinate_pooler(features_list, pred_boxes)
+                bb_features_coord = self.bb_decoder(bb_features_coord)
+                coordinate_features = torch.cat((coordinate_features, bb_features_coord), dim=1)
+        'concatenate image with coordinate_features'
+        if self.training:        
             assert self.num_fg_boxes * self.img_per_batch == coordinate_features.shape[0], coordinate_features.shape
-            # first reshape coordinate_features to [img_per_batch, num_fg_boxes, *HIDE_IMG_SIZE]
-            coordinate_features = coordinate_features.unsqueeze_(0).view(self.img_per_batch, self.num_fg_boxes, -1, *self.hide_img_size)
-            # then expand the resized_img to [img_per_batch, num_fg_boxes, *HIDE_IMG_SIZE]
-            resized_img = resized_img.unsqueeze_(1).expand(-1, self.num_fg_boxes, -1,*self.hide_img_size)
-            coordinate_features = torch.cat((coordinate_features, resized_img), dim=2)
-            coordinate_features = coordinate_features.view(self.num_fg_boxes*self.img_per_batch, -1, *self.hide_img_size)
-            
-            def vis_tensor(tensor_to_vis: torch.Tensor, kill_window):
-                tensor_to_vis = tensor_to_vis.to("cpu")
-                from torchvision.transforms import transforms as ttf
-                import numpy as np
-                toImg = ttf.ToPILImage()
-                # _resized_img = toImg(_resized_img)
-                img = tensor_to_vis.permute(1,2,0).numpy()[:,:, ::-1]
-                img += np.asarray(self.pixel_mean)
-                img = np.array(img, dtype=np.int32)
-                dispImg("resized_img", img, kill_window)
-            if need_visualization:
-                # vis_tensor(images.__getitem__(0), False)
-                vis_tensor(img_to_vis, False)
-                vis_tensor(features_to_vis, True)
-            
+            num_images = self.img_per_batch
+            num_bboxes = self.num_fg_boxes
+        else:
+            num_images = 1
+            num_bboxes = coordinate_features.shape[0]
+        # first reshape coordinate_features to [img_per_batch, num_fg_boxes, *HIDE_IMG_SIZE]
+        coordinate_features = coordinate_features.unsqueeze_(0).view(num_images, num_bboxes, -1, *self.hide_img_size)
+        # then expand the resized_img to [img_per_batch, num_fg_boxes, *HIDE_IMG_SIZE]
+        resized_img = resized_img.unsqueeze_(1).expand(-1, num_bboxes, -1,*self.hide_img_size)
+        coordinate_features = torch.cat((coordinate_features, resized_img), dim=2)
+        coordinate_features = coordinate_features.view(num_bboxes*num_images, -1, *self.hide_img_size)
+        
+        def vis_tensor(tensor_to_vis: torch.Tensor, kill_window):
+            tensor_to_vis = tensor_to_vis.to("cpu")
+            from torchvision.transforms import transforms as ttf
+            import numpy as np
+            toImg = ttf.ToPILImage()
+            # _resized_img = toImg(_resized_img)
+            img = tensor_to_vis.permute(1,2,0).numpy()[:,:, ::-1]
+            img += np.asarray(self.pixel_mean)
+            img = np.array(img, dtype=np.int32)
+            dispImg("resized_img", img, kill_window)
+        if need_visualization:
+            # vis_tensor(images.__getitem__(0), False)
+            vis_tensor(img_to_vis, False)
+            vis_tensor(features_to_vis, True)
+        
 
-            coordinate_features = self.selayer(coordinate_features)
-            pred_coordinates = self.coordinate_head(coordinate_features)
+        coordinate_features = self.selayer(coordinate_features)
+        pred_coordinates = self.coordinate_head(coordinate_features)
+        if self.training:
             loss_coord = coordinate_loss(pred_coordinates, fg_proposals)
-            
             return loss_coord
         else:
-            # return instances
-            raise NotImplementedError("Not implemented")
+            instances[0].pred_coordinates = pred_coordinates
+            return instances
 
     def forward(
         self,
@@ -177,7 +186,8 @@ class CaterROIHeads(StandardROIHeads):
 
         if self.training:
             losses.update(self._forward_coordinate(features, instances, images))
-
+        else:
+            instances = self._forward_coordinate(features, instances, images)
         del images
 
         return instances, losses

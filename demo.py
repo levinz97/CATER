@@ -3,7 +3,9 @@ from data import register_cater_dataset
 from utils import dispImg
 from config.cater_config import add_cater_config
 from model import CaterROIHeads
+from model.cater_evaluator import CaterEvaluator
 from cater_trainer import CaterTrainer
+
 
 
 from detectron2.config import get_cfg
@@ -46,7 +48,7 @@ if __name__ == "__main__":
     annotation_location = os.path.join('.', 'dataset', 'annotations','02train.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
-    test_annot_location = os.path.join('.', 'dataset', 'annotations','02test.json')
+    test_annot_location = os.path.join('.', 'dataset', 'annotations','debug.json')
     test_img_folder = os.path.join('.', 'dataset', 'images','test_image')
     register_cater_dataset.register_dataset(dataset_name='cater_test', annotations_location=test_annot_location, image_folder=test_img_folder)
     # set configuration file
@@ -99,11 +101,11 @@ if __name__ == "__main__":
         trainer = CaterTrainer(cfg)
         trainer.resume_or_load(resume=False) # fixed 0 AP error
         # model = trainer.build_model(cfg) ## build_model does not load any weight from cfg, causing AP = 0!
-        # res = trainer.test(cfg, model, evaluators=COCOEvaluator("cater",distributed=False))
-        ## equivalent way for evaluation
-        evaluator = COCOEvaluator("cater_test")
-        val_loader = build_detection_test_loader(cfg, "cater_test")
-        inference_on_dataset(trainer.model, val_loader, evaluator)
+        res = CaterTrainer.test(cfg, trainer.model, evaluators=CaterEvaluator("cater_test"))
+        ## equivalent way for evaluation only COCO
+        # evaluator = COCOEvaluator("cater_test")
+        # val_loader = build_detection_test_loader(cfg, "cater_test")
+        # inference_on_dataset(trainer.model, val_loader, evaluator)
 
     if args.infer:
         warnings.filterwarnings('ignore')

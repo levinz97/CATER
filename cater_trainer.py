@@ -7,8 +7,8 @@ from data.cater_dataset_loader import CaterDatasetMapper
 class CaterTrainer(DefaultTrainer):
 
     @classmethod
-    def build_test_loader(cls, cfg:CfgNode):
-        return build_detection_test_loader(cfg, mapper=CaterDatasetMapper(cfg, is_train=False))
+    def build_test_loader(cls, cfg:CfgNode, dataset_name):
+        return build_detection_test_loader(cfg, dataset_name, mapper=CaterDatasetMapper(cfg, is_train=False))
     
     @classmethod
     def build_train_loader(cls, cfg:CfgNode):
