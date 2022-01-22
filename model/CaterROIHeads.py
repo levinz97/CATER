@@ -60,9 +60,9 @@ class CaterROIHeads(StandardROIHeads):
             bb_coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_RESOLUTION
             bb_coordinate_pooler_sampling_ratio = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_SAMPLING_RATIO
             bb_coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE
+            channel_decrease_ratio              = cfg.MODEL.ROI_COORDINATE_HEAD.CHANNEL_DECREASE_RATIO # 2^ratio
             bb_coordinate_pooler_scale = [1.0 / input_shape[k].stride for k in coordinate_in_features]
             decoder_in_channels = [input_shape[f].channels for f in coordinate_in_features][0]
-            channel_decrease_ratio = 6 # 2^ratio
             decoder_out_channels = decoder_in_channels // (2**channel_decrease_ratio)
             in_channels += decoder_out_channels
             # decoder to decrease the number of channels from backbones' features, and upsample it 
@@ -73,7 +73,7 @@ class CaterROIHeads(StandardROIHeads):
                 sampling_ratio=bb_coordinate_pooler_sampling_ratio,
                 pooler_type=bb_coordinate_pooler_type
             )
-            self.selayer = SELayer(in_channels, reduction=2)
+            self.selayer = SELayer(in_channels, reduction=4)
 
         self.img_coordinate_pooler = ROIPooler(
                 output_size=img_coordinate_pooler_resolution,

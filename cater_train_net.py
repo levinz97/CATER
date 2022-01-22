@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.SOLVER.WARMUP_ITERS = 500
-    cfg.SOLVER.BASE_LR = 0.001
+    cfg.SOLVER.BASE_LR = 0.005
 
     on_server  = False
     if os.path.expanduser('~').split('/')[-1] == 'group1':

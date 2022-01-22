@@ -43,10 +43,10 @@ if __name__ == "__main__":
     args = get_parser()
     setup_logger()
     # register dataset
-    annotation_location = os.path.join('.', 'dataset', 'annotations','01train.json')
+    annotation_location = os.path.join('.', 'dataset', 'annotations','02train.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
-    test_annot_location = os.path.join('.', 'dataset', 'annotations','01test.json')
+    test_annot_location = os.path.join('.', 'dataset', 'annotations','02test.json')
     test_img_folder = os.path.join('.', 'dataset', 'images','test_image')
     register_cater_dataset.register_dataset(dataset_name='cater_test', annotations_location=test_annot_location, image_folder=test_img_folder)
     # set configuration file

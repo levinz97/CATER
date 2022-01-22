@@ -31,7 +31,7 @@ class Decoder(nn.Module):
             self.add_module(f'decoder_conv1_{i+1}', conv1)
             conv3 = conv_bn_relu(in_channels//(2**(i+1)), in_channels//(2**(i+1)), kernel_size=3, padding=1)
             self.add_module(f'decoder_conv3_{i+1}', conv3)
-            if use_upsample and i % 2 == 0:
+            if use_upsample and (i-1) % 2 == 0:
                 upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
                 self.add_module(f'decoder_upsample{i+1}', upsample)
         
@@ -42,7 +42,7 @@ class Decoder(nn.Module):
             x = getattr(self, conv1_name)(x)
             conv3_name = f'decoder_conv3_{i+1}'
             x = getattr(self, conv3_name)(x)
-            if self.use_upsample and i % 2 == 0:
+            if self.use_upsample and (i-1) % 2 == 0:
                 upsample_name = f'decoder_upsample{i+1}'
                 x = getattr(self, upsample_name)(x)
         return x
@@ -65,7 +65,7 @@ class SELayer(nn.Module):
 
     def forward(self, x):
         b, c, _,_ = x.size()
-        # squeeze by aggregating feature maps across theirspatial dimensions
+        # squeeze by aggregating feature maps across their spatial dimensions
         y = self.avg_pooling_layer(x).squeeze()
         # excitation, view to enable broadcasting
         y = self.fc(y).view(b, c, 1, 1)
