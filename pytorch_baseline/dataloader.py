@@ -15,16 +15,17 @@ class CaterDataloader(data.Dataset):
         self.image_dir = image
         self.coco = COCO(annotations)
         self.transforms = transforms
-        self.ids = list(sorted(self.coco.imgs.keys()))
+        self.ids = list(sorted(self.coco.imgs.keys()))  # 数据集中所有样本的id号
 
 
-    def __getitem__(self, index):
-        img_id = self.ids[index]
-        anno_ids = self.coco.getAnnIds(imgIds=img_id)
-        coco_annos = self.coco.loadAnns(anno_ids)
-        img_path = self.coco.loadImgs(img_id)[0]['file_name']
+    def __getitem__(self, index):  # access through index  s = CaterDaraloader s[1] ...
+        img_id = self.ids[index]  # get img_id
+        anno_ids = self.coco.getAnnIds(imgIds=img_id) # get annonation id huoqu biaozhu id
+        coco_annos = self.coco.loadAnns(anno_ids) # jiazai biaozhu
+        img_path = self.coco.loadImgs(img_id)[0]['file_name'] #jiazai img
         img = Image.open(os.path.join(self.image_dir, img_path))
         img = transforms.ToTensor()(img)
+
         # self.coco.showAnns(coco_annos,draw_bbox=True)
         num_objs = len(coco_annos)
         # Bounding boxes for objects
@@ -51,7 +52,7 @@ class CaterDataloader(data.Dataset):
             coordinates.append(coordinate3d) 
             categories.append(item['category_id'])
 
-        categories = torch.as_tensor(categories, dtype=torch.int32)
+        categories = torch.as_tensor(categories, dtype=torch.int32) # change the variable type to torch.tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         areas = torch.as_tensor(areas, dtype=torch.float32)
         coordinates = torch.as_tensor(coordinates, dtype=torch.float64)
