@@ -83,7 +83,7 @@ if __name__ == '__main__':
         root = os.path.join('.', 'dataset')
     
     image_dir = os.path.join('images', 'image')
-    annotations = os.path.join('annotations', '5200-5214.json')
+    annotations = os.path.join('annotations', '5200-5204.json')
     cdl = CaterDataloader(root, image_dir, annotations)
     print(cdl.__getitem__(0))
 
