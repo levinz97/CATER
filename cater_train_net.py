@@ -26,10 +26,10 @@ def train_on_server(cfg:CfgNode):
 if __name__ == "__main__":
     setup_logger()
     # register dataset
-    annotation_location = os.path.join('.', 'dataset', 'annotations','01train.json')
+    annotation_location = os.path.join('.', 'dataset', 'annotations','02train.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
-    test_annot_location = os.path.join('.', 'dataset', 'annotations','5400-5406.json')
+    test_annot_location = os.path.join('.', 'dataset', 'annotations','02test.json')
     test_img_folder = os.path.join('.', 'dataset', 'images','test_image')
     register_cater_dataset.register_dataset(dataset_name='cater_test', annotations_location=test_annot_location, image_folder=test_img_folder)
     # set configuration file
@@ -49,11 +49,11 @@ if __name__ == "__main__":
     #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
     # E.g., a common configuration is: 512 * 16 = 8192
     # number of ROI per image
-    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 50
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 80
 
     cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.SOLVER.WARMUP_ITERS = 500
-    cfg.SOLVER.BASE_LR = 0.001
+    cfg.SOLVER.BASE_LR = 0.005
 
     on_server  = False
     if os.path.expanduser('~').split('/')[-1] == 'group1':
