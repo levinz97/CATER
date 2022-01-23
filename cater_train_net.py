@@ -49,7 +49,7 @@ if __name__ == "__main__":
     #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
     # E.g., a common configuration is: 512 * 16 = 8192
     # number of ROI per image
-    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 80
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 50
 
     cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.SOLVER.WARMUP_ITERS = 500

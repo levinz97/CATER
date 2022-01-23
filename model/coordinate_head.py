@@ -5,7 +5,7 @@ from detectron2.layers import cat, Conv2d
 from detectron2.utils.registry import Registry
 from detectron2.config import CfgNode
 
-from .layers import conv_bn_relu
+from .layers import conv_bn_relu, ParallelDilatedConv
 
 ROI_COORDINATE_HEAD_REGISTRY = Registry('ROI_COORDINATE_HEAD_REGISTRY')
 
@@ -28,7 +28,8 @@ class coordinateHead(torch.nn.Module):
         padding = (kernel_size-1) * dilation // 2
         for i in range(self.n_stacked_convs):
             # use custom layer instead of detectron2 wrapper layer due to compatible reason 
-            layer = conv_bn_relu(input_channels * (2**i), input_channels * (2**(i+1)), kernel_size, stride=2, padding=padding, dilation=dilation)
+            # layer = conv_bn_relu(input_channels * (2**i), input_channels * (2**(i+1)), kernel_size, stride=2, padding=padding, dilation=dilation)
+            layer = ParallelDilatedConv(input_channels*(2**i), input_channels * (2**(i+1)), kernel_size, dilations=[2,3],stride=2)
             layer_name = self._name_layers(i)
             self.add_module(layer_name, layer)
         # self.conv_bn_relu_last = conv_bn_relu(input_channels, 3, kernel_size=1)

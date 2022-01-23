@@ -1,3 +1,4 @@
+from detectron2.layers.wrappers import cat
 from torch import nn
 
 def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilation=1, padding=0, use_bn=True, use_relu=True):
@@ -17,6 +18,42 @@ def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilatio
         layers.append(nn.LeakyReLU(0.01, inplace=True))
 
     return nn.Sequential(*layers)
+
+
+class ParallelDilatedConv(nn.Module):
+    def __init__(self,input_channels, output_channels, kernel_size, stride=1, dilations=1, padding=0, use_bn=True, use_relu=True):
+        super().__init__()
+        if isinstance(dilations, int):
+            layer_name = self._name_layers(0)
+            padding = (kernel_size-1) * dilations // 2
+            layer = conv_bn_relu(input_channels, output_channels, kernel_size, stride, dilations, padding, use_bn=use_bn, use_relu=use_relu)
+            self.add_module(layer_name, layer)
+            self.n_parallel_dilations = 1
+
+        elif isinstance(dilations, list):
+            self.n_parallel_dilations = len(dilations)
+            ouput_channel = output_channels // self.n_parallel_dilations
+            for i in range(len(dilations)):
+                layer_name = self._name_layers(i)
+                padding = (kernel_size-1) * dilations[i] // 2
+                layer = conv_bn_relu(input_channels, ouput_channel, kernel_size, stride, dilations[i], padding, use_bn=use_bn, use_relu=use_relu)
+                self.add_module(layer_name, layer)
+        else:
+            raise TypeError("dilations must be a list or a single integer")
+
+    def _name_layers(self, i:int):
+        return f'Parallel_conv_{i+1}'
+
+    def forward(self, x):
+        output = None
+        for i in range(self.n_parallel_dilations):
+            layer_name = self._name_layers(i)
+            y = getattr(self, layer_name)(x)
+            if i == 0:
+                output = y
+            else:
+                output = cat([output,y],dim=1)
+        return output
 
 class Decoder(nn.Module):
     def __init__(self, in_channels, n_layers, use_upsample=True):
