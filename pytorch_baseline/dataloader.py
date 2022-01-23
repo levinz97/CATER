@@ -1,5 +1,6 @@
 import torch.utils.data as data
 import torch
+import torchvision
 from PIL import Image
 from torchvision import transforms
 from pycocotools.coco import COCO
@@ -20,9 +21,9 @@ class CaterDataloader(data.Dataset):
 
     def __getitem__(self, index):  # access through index  s = CaterDaraloader s[1] ...
         img_id = self.ids[index]  # get img_id
-        anno_ids = self.coco.getAnnIds(imgIds=img_id) # get annonation id huoqu biaozhu id
-        coco_annos = self.coco.loadAnns(anno_ids) # jiazai biaozhu
-        img_path = self.coco.loadImgs(img_id)[0]['file_name'] #jiazai img
+        anno_ids = self.coco.getAnnIds(imgIds=img_id) # get annonation id
+        coco_annos = self.coco.loadAnns(anno_ids) # loading annotation
+        img_path = self.coco.loadImgs(img_id)[0]['file_name'] #loading img
         img = Image.open(os.path.join(self.image_dir, img_path))
         img = transforms.ToTensor()(img)
 
@@ -55,7 +56,7 @@ class CaterDataloader(data.Dataset):
         categories = torch.as_tensor(categories, dtype=torch.int32) # change the variable type to torch.tensor
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         areas = torch.as_tensor(areas, dtype=torch.float32)
-        coordinates = torch.as_tensor(coordinates, dtype=torch.float64)
+        coordinates = torch.as_tensor(coordinates, dtype=torch.float32)
         iscrowd = torch.zeros((num_objs,), dtype=torch.int32)
 
         # Annotation is in dictionary format
@@ -71,6 +72,25 @@ class CaterDataloader(data.Dataset):
         if self.transforms is not None:
             img = self.transforms(img)
 
+        data_transforms = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+        reshape_img = torch.reshape(img, (-1, 3, 240, 320))
+        idx = torch.tensor([0])
+        step = 0
+        for bbox in cater_annotation['boxes']:
+            bbox = torch.cat((idx, bbox), dim=0)
+            bbox = torch.reshape(bbox, (-1, 5))
+            roi = torchvision.ops.roi_align(reshape_img, bbox, output_size=(224, 224), spatial_scale=1.0,
+                                            sampling_ratio=-1)
+            reshape_img = data_transforms(reshape_img)
+            new_img = torch.cat((reshape_img, roi), dim=1)
+            if step == 0:
+                img = new_img
+            else:
+                img = torch.cat((img, new_img), dim=0)
+            step += 1
 
         return img, cater_annotation
 
