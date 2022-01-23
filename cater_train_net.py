@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # if input("print configurations? ") == 'y':
     #     print(cfg.dump())
     
-    output_dir = datetime.today().strftime('%d-%m_%H:%M')
+    output_dir = datetime.today().strftime('%d-%m_%H_%M')
     cfg.OUTPUT_DIR = "output/{}".format(output_dir)
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     trainer = CaterTrainer(cfg)
