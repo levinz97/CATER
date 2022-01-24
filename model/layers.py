@@ -133,7 +133,7 @@ class Decoder(nn.Module):
 
 class SELayer(nn.Module):
     """
-    inplement squeeze and excitation layer to learn to reweight the importance of image and backbone features
+    inplement squeeze and excitation layer to reweight image and backbone features
     """
     def __init__(self, in_channels, reduction=16):
         super().__init__()
