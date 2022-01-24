@@ -30,7 +30,9 @@ class coordinateHead(torch.nn.Module):
             # use custom layer instead of detectron2 wrapper layer due to compatible reason 
             # layer = conv_bn_relu(input_channels * (2**i), input_channels * (2**(i+1)), kernel_size, stride=2, padding=padding, dilation=dilation)
             # layer = GroupedDilatedConv(input_channels*(2**i), input_channels * (2**(i+1)), kernel_size, dilations=[2,3],stride=2)
-            layer = GroupedDilatedConvV2(input_channels*(2**i), input_channels * (2**(i+1)), kernel_size, stride=2)
+            dilations = [1,2,3,4]
+            # dilations = [2,2,2,2,2,2,2]
+            layer = GroupedDilatedConvV2(input_channels*(2**i), input_channels * (2**(i+1)), kernel_size, stride=2, dilations=dilations)
             layer_name = self._name_layers(i)
             self.add_module(layer_name, layer)
         # self.conv_bn_relu_last = conv_bn_relu(input_channels, 3, kernel_size=1)

@@ -15,9 +15,13 @@ def calculate_rf(kernel_size, dialtion, stride, n_layers):
 
 
 if __name__ == '__main__':
-    print(calculate_rf(kernel_size=3, dialtion=1, stride=2, n_layers=5))
-    print(calculate_rf(kernel_size=3, dialtion=2, stride=2, n_layers=5))
-    print(calculate_rf(kernel_size=5, dialtion=2, stride=2, n_layers=5))
+    n_layers = 5
+    print(calculate_rf(kernel_size=3, dialtion=1, stride=2, n_layers=n_layers))
+    print(calculate_rf(kernel_size=3, dialtion=2, stride=2, n_layers=n_layers))
+    print(calculate_rf(kernel_size=3, dialtion=3, stride=2, n_layers=n_layers))
+    print(calculate_rf(kernel_size=3, dialtion=4, stride=2, n_layers=n_layers))
+    print(calculate_rf(kernel_size=5, dialtion=2, stride=2, n_layers=n_layers))
+    print(calculate_rf(kernel_size=5, dialtion=3, stride=2, n_layers=n_layers))
     
 
 
