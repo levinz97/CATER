@@ -134,7 +134,8 @@ class CaterROIHeads(StandardROIHeads):
                 coordinate_features = torch.cat((coordinate_features, bb_features_coord), dim=1)
         'concatenate image with coordinate_features'
         if self.training:        
-            assert self.num_fg_boxes * self.img_per_batch == coordinate_features.shape[0], coordinate_features.shape
+            if self.num_fg_boxes * self.img_per_batch != coordinate_features.shape[0]:
+                return {}
             num_images = self.img_per_batch
             num_bboxes = self.num_fg_boxes
         else:

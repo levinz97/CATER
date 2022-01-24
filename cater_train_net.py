@@ -49,7 +49,7 @@ if __name__ == "__main__":
     #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
     # E.g., a common configuration is: 512 * 16 = 8192
     # number of ROI per image
-    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 80
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 50
 
     cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.SOLVER.WARMUP_ITERS = 500
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # if input("print configurations? ") == 'y':
     #     print(cfg.dump())
     
-    output_dir = datetime.today().strftime('%d-%m_%H:%M')
+    output_dir = datetime.today().strftime('%d-%m_%H_%M')
     cfg.OUTPUT_DIR = "output/{}".format(output_dir)
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     trainer = CaterTrainer(cfg)
