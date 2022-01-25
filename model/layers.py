@@ -1,7 +1,12 @@
+from collections import OrderedDict
 from detectron2.layers.wrappers import cat
 from torch import nn
+import torch.nn.functional as F
+# import torch
+# torch.autograd.set_detect_anomaly(True)
 
-def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilation=1, padding=0, use_bn=True, use_relu=True):
+
+def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilation=1, padding=0, use_bn=True, use_relu=True, groups=1):
     layers = []
     layers.append(
         nn.Conv2d(input_channels,
@@ -10,7 +15,8 @@ def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilatio
                   stride,
                   padding,
                   dilation=dilation,
-                  bias=not use_bn)
+                  bias=not use_bn,
+                  groups=groups,)
     )
     if use_bn:
         layers.append(nn.BatchNorm2d(output_channels))
@@ -131,9 +137,35 @@ class Decoder(nn.Module):
                 x = getattr(self, upsample_name)(x)
         return x
 
+class DilatedResNextBlock(nn.Module):
+    def __init__(self, in_channels, bottleneck_width=7, cardinality=32, stride=1, expansion=2):
+        super().__init__()
+        inner_width = bottleneck_width * cardinality
+        self.expansion = expansion
+        self.basic = nn.Sequential(OrderedDict(
+            [
+                ('ConvBnR1_0', conv_bn_relu(in_channels, inner_width, kernel_size=1, stride=1)),
+                ('ConvBnR3_0', conv_bn_relu(inner_width, inner_width, kernel_size=3, dilation=2, padding=2, stride=stride, groups=cardinality)),
+                ('ConvBnR1_1', conv_bn_relu(in_channels, inner_width*self.expansion, kernel_size=1, stride=1, use_relu=False)),
+            ]
+        ))
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_channels != inner_width*self.expansion:
+            self.shortcut = nn.Sequential(OrderedDict([
+                ('ConvBnR1_2', conv_bn_relu(in_channels, inner_width*self.expansion, kernel_size=1, stride=stride, use_bn=False, use_relu=False))
+            ]))
+        self.bn0 = nn.BatchNorm2d(self.expansion * inner_width)
+    
+    def forward(self, x):
+        out = self.basic(x)
+        out += self.shortcut(x)
+        out = F.relu(self.bn0(out),inplace=True)
+        return out
+
+
 class SELayer(nn.Module):
     """
-    inplement squeeze and excitation layer to learn to reweight the importance of image and backbone features
+    inplement squeeze and excitation layer to reweight image and backbone features
     """
     def __init__(self, in_channels, reduction=16):
         super().__init__()

@@ -26,10 +26,10 @@ def train_on_server(cfg:CfgNode):
 if __name__ == "__main__":
     setup_logger()
     # register dataset
-    annotation_location = os.path.join('.', 'dataset', 'annotations','02train.json')
+    annotation_location = os.path.join('.', 'dataset', 'annotations','31train.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
-    test_annot_location = os.path.join('.', 'dataset', 'annotations','02test.json')
+    test_annot_location = os.path.join('.', 'dataset', 'annotations','31test.json')
     test_img_folder = os.path.join('.', 'dataset', 'images','test_image')
     register_cater_dataset.register_dataset(dataset_name='cater_test', annotations_location=test_annot_location, image_folder=test_img_folder)
     # set configuration file
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     cfg.DATALOADER.NUM_WORKERS = 6
 
     cfg.MODEL.WEIGHTS = "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl"
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 270
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 193
     # Total number of RoIs per training minibatch =
     #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
     # E.g., a common configuration is: 512 * 16 = 8192
