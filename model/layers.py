@@ -84,8 +84,9 @@ class GroupedDilatedConvV2(nn.Module):
                     layers.append(layer)
                     input_channel = output_channel
                 self.add_module(layer_name, nn.Sequential(*layers))
-            self.last_conv1 = conv_bn_relu(output_channel*self.n_dilations, input_channels, kernel_size=1)
+            self.last_conv1 = conv_bn_relu(output_channel*self.n_dilations, input_channels, kernel_size=1, use_bn=False, use_relu=False)
             # self.downsample_conv1 = conv_bn_relu(input_channels, input_channels, kernel_size=1, stride=2)
+            self.bn0 = nn.BatchNorm2d(output_channels)
             self.downsample = nn.MaxPool2d(1,2)
         else:
             raise TypeError("dilations must be a list or a single integer")
@@ -106,6 +107,7 @@ class GroupedDilatedConvV2(nn.Module):
         # x = self.downsample_conv1(x)
         x = self.downsample(x)
         output = cat([output, x], dim=1)
+        output = F.relu(self.bn0(output), inplace=True)
         return output
 
 class Decoder(nn.Module):
