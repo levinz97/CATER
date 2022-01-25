@@ -45,10 +45,10 @@ if __name__ == "__main__":
     args = get_parser()
     setup_logger()
     # register dataset
-    annotation_location = os.path.join('.', 'dataset', 'annotations','02train.json')
+    annotation_location = os.path.join('.', 'dataset', 'annotations','31train.json')
     img_folder = os.path.join('.', 'dataset', 'images','image')
     register_cater_dataset.register_dataset(dataset_name='cater', annotations_location= annotation_location, image_folder= img_folder)
-    test_annot_location = os.path.join('.', 'dataset', 'annotations','32test.json')
+    test_annot_location = os.path.join('.', 'dataset', 'annotations','31test.json')
     test_img_folder = os.path.join('.', 'dataset', 'images','test_image')
     register_cater_dataset.register_dataset(dataset_name='cater_test', annotations_location=test_annot_location, image_folder=test_img_folder)
     # set configuration file
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     cfg.DATALOADER.NUM_WORKERS = 6
 
     cfg.MODEL.WEIGHTS = "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl"
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 270
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 193
     # Total number of RoIs per training minibatch =
     #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
     # E.g., a common configuration is: 512 * 16 = 8192
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
     if args.infer:
         warnings.filterwarnings('ignore')
-        cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.6
+        cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3
         cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
         predictor = DefaultPredictor(cfg)
         test_img = cv2.imread("test.png")
@@ -132,8 +132,11 @@ if __name__ == "__main__":
                         instance_mode=ColorMode.IMAGE_BW)
             v = vis.draw_instance_predictions(pred[item])
             class_idx  = pred[item].pred_classes
+            pred_coordinates = pred[item].pred_coordinates
+            pred_coordinates = torch.squeeze(pred_coordinates).numpy()
             class_name = class_catalog[int(torch.squeeze(class_idx)) + 1] # pred_classes starts from 0, in json from 1
             print(f"{class_name}")
             v = vis.draw_text(f"{class_name}", position=(100,0))
+            v = vis.draw_text(f"{pred_coordinates}", position=(150,50))
             img = v.get_image()[:, :, ::-1]
             dispImg("prediction", img, kill_window=True)
