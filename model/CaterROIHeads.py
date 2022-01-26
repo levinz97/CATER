@@ -43,25 +43,25 @@ class CaterROIHeads(StandardROIHeads):
         pass
 
     def _init_coordinate_head(self, cfg, input_shape):
-        self.img_per_batch         = cfg.SOLVER.IMS_PER_BATCH
-        num_total_boxes            = self.batch_size_per_image
-        self.num_fg_boxes          = floor(num_total_boxes * self.positive_fraction)
-        self.use_backbone_features = cfg.MODEL.ROI_COORDINATE_HEAD.USE_BACKBONE_FEATURES
-        coordinate_in_features     = cfg.MODEL.ROI_COORDINATE_HEAD.IN_FEATURES if self.use_backbone_features else None
-        self.img_size              = cfg.MODEL.ROI_COORDINATE_HEAD.IMG_SIZE
-        self.hide_img_size         = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE
+        self.img_per_batch         = cfg.SOLVER.IMS_PER_BATCH # g number of a batch
+        num_total_boxes            = self.batch_size_per_image # boex number of a image
+        self.num_fg_boxes          = floor(num_total_boxes * self.positive_fraction) # fg boxes number of a image
+        self.use_backbone_features = cfg.MODEL.ROI_COORDINATE_HEAD.USE_BACKBONE_FEATURES # True
+        coordinate_in_features     = cfg.MODEL.ROI_COORDINATE_HEAD.IN_FEATURES if self.use_backbone_features else None # ["p2", "p3", "p4", "p5"]
+        self.img_size              = cfg.MODEL.ROI_COORDINATE_HEAD.IMG_SIZE # (240,320)
+        self.hide_img_size         = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE () # (128,128)
         in_channels = 6 # raw image 3 + cropped image within bbox 3
-        img_coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE
-        img_coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE
+        img_coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE # (128,128)
+        img_coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE # 'ROIAlignV2'
         img_coordinate_pooler_sampling_ratio = 0
         img_coordinate_pooler_scale          = [1] # on raw image
         
         if self.use_backbone_features:
-            bb_coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_RESOLUTION
-            bb_coordinate_pooler_sampling_ratio = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_SAMPLING_RATIO
-            bb_coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE
-            bb_coordinate_pooler_scale = [1.0 / input_shape[k].stride for k in coordinate_in_features]
-            decoder_in_channels = [input_shape[f].channels for f in coordinate_in_features][0]
+            bb_coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_RESOLUTION # (16, 16)
+            bb_coordinate_pooler_sampling_ratio = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_SAMPLING_RATIO # 0
+            bb_coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE # 'ROIAlignV2'
+            bb_coordinate_pooler_scale = [1.0 / input_shape[k].stride for k in coordinate_in_features] # different scale
+            decoder_in_channels = [input_shape[f].channels for f in coordinate_in_features][0] # get in_channel
             channel_decrease_ratio = 6 # 2^ratio
             decoder_out_channels = decoder_in_channels // (2**channel_decrease_ratio)
             in_channels += decoder_out_channels
