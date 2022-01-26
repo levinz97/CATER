@@ -84,15 +84,17 @@ class CaterDataloader(data.Dataset):
             bbox = torch.reshape(bbox, (-1, 5))
             roi = torchvision.ops.roi_align(reshape_img, bbox, output_size=(224, 224), spatial_scale=1.0,
                                             sampling_ratio=-1)
-            reshape_img = data_transforms(reshape_img)
-            new_img = torch.cat((reshape_img, roi), dim=1)
+            roi = transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])(roi)
+            transform_img = data_transforms(reshape_img)
+            new_img = torch.cat((transform_img, roi), dim=1)
             if step == 0:
-                img = new_img
+                cat_img = new_img
             else:
-                img = torch.cat((img, new_img), dim=0)
+                cat_img = torch.cat((cat_img, new_img), dim=0)
             step += 1
+        img = cat_img
 
-        return img, cater_annotation
+        return img, cater_annotation["coordinates"]
 
     def __len__(self):
         return len(self.ids)
@@ -104,7 +106,7 @@ if __name__ == '__main__':
         root = os.path.join('.', 'dataset')
     
     image_dir = os.path.join('images', 'image')
-    annotations = os.path.join('annotations', '5200-5214.json')
+    annotations = os.path.join('annotations', 'train_dataset.json')
     cdl = CaterDataloader(root, image_dir, annotations)
     print(cdl.__getitem__(0))
 

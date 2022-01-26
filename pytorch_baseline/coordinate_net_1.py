@@ -65,7 +65,7 @@ class CoordinateNet():
 
                 total_train_step += 1
                 if total_train_step % 50 == 0:
-                    print("训练次数：{}, Loss:{}".format(total_train_step, loss.item()))
+                    print("number of training：{}, Loss:{}".format(total_train_step, loss.item()))
                     self.writer.add_scalar("train_loss", loss.item(), total_train_step)
             torch.save(model, "./model_output/coord_model_{}.pth".format(epoch))
 
@@ -86,7 +86,7 @@ class CoordinateNet():
                 # print(coordinates.shape)
                 output = model(imgs)
                 loss = loss_mse(output, coordinates)
-                # pred_bbox_d2 = self.detectron(imgs)
+
                 # loss = model(imgs, annotations, pred_bbox_d2)
                 total_test_loss += loss
                 step += 1
@@ -95,6 +95,10 @@ class CoordinateNet():
             print(total_test_loss.item())
             average_loss = total_test_loss / step
             print(average_loss.item())
+
+    def predict(self, imgs):
+        pred_bbox_d2 = self.detectron(imgs)
+        
 
 def collate(batch):
     list1 = []
@@ -109,9 +113,9 @@ def collate(batch):
 class Coordinate_model(nn.Module):
     def __init__(self):
         super(Coordinate_model, self).__init__()
-        self.resnet_model = torchvision.models.resnet50(pretrained=True)
-        num_ftrs = self.resnet_model.fc.in_features
+        self.resnet_model = torchvision.models.resnet34(pretrained=True)
         self.resnet_model.conv1 = nn.Conv2d(6, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        num_ftrs = self.resnet_model.fc.in_features
         self.resnet_model.fc = nn.Linear(num_ftrs, 3)
         # print(self.resnet_model)
 
@@ -122,13 +126,14 @@ class Coordinate_model(nn.Module):
 
 
 if __name__ == '__main__':
-    train = False
-    test = True
+    train = False # if train or not
+    test = False # if test or not
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    test_model = torch.load("coord_model_18.pth") #load the trained model
     coordinatenet = CoordinateNet()
     coordinate_model = Coordinate_model()
+    print(coordinate_model)
     if train:
         coordinatenet.train_net(coordinate_model, device)
     if test:
+        test_model = torch.load("./trained_model/coord_model_bz7_19.pth")  # load the trained model
         coordinatenet.test(test_model, device)
