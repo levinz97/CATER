@@ -49,3 +49,11 @@ sh ./connect_server.sh
 *: must have
 
 ```
+
+## 3D Coordination Prediction
+
+USE_BACKBONE_FEATURES=False:
+![3d loss without FPN.png](docs/3d_loss_without_FPN.png)
+
+USE_BACKBONE_FEATURES=True:
+![3d loss with FPN.png](docs/3d_loss_with_FPN.png)

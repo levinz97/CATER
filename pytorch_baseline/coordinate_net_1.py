@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 
-from dataloader import CaterDataloader
+from dataloader_1 import CaterDataloader
 
 class CoordinateNet():
     def __init__(self):
@@ -29,13 +29,13 @@ class CoordinateNet():
         image_dir = os.path.join('images', 'image')
         train_annotations = os.path.join('annotations', 'train_dataset.json')
         test_annotations = os.path.join('annotations', 'test_dataset.json')
-        train_batch_size = 6
-        test_batch_size = 1
+        self.train_batch_size = 6
+        self.test_batch_size = 1
         self.train_dataset = CaterDataloader(root, image_dir, train_annotations)
-        self.train_dataloader = DataLoader(dataset=self.train_dataset, batch_size=train_batch_size, collate_fn=collate)
+
         self.test_dataset = CaterDataloader(root, image_dir, test_annotations)
-        self.test_dataloader = DataLoader(dataset=self.test_dataset, batch_size=test_batch_size, collate_fn=collate)
-        self.writer = SummaryWriter("coordinate_loss_{}".format(train_batch_size))
+        self.test_dataloader = DataLoader(dataset=self.test_dataset, batch_size=self.test_batch_size, collate_fn=collate)
+        self.writer = SummaryWriter("coordinate_loss_{}".format(self.train_batch_size))
 
     def train_net(self, model, device):
         num_epochs = 20
@@ -47,6 +47,8 @@ class CoordinateNet():
         total_train_step = 0
         for epoch in range(num_epochs):
             print("------------------{} epoch start -------------------".format(epoch+1))
+            self.train_dataloader = DataLoader(dataset=self.train_dataset, batch_size=self.train_batch_size, shuffle=True,
+                                               collate_fn=collate)
             model.train()
             for data in self.train_dataloader:
                 imgs, coordinates = data
@@ -64,10 +66,10 @@ class CoordinateNet():
                 optimizer.step()
 
                 total_train_step += 1
-                if total_train_step % 50 == 0:
+                if total_train_step % 10 == 0:
                     print("number of training：{}, Loss:{}".format(total_train_step, loss.item()))
                     self.writer.add_scalar("train_loss", loss.item(), total_train_step)
-            torch.save(model, "./model_output/coord_model_{}.pth".format(epoch))
+            torch.save(model, "./model_output/coord_model_a_{}.pth".format(epoch))
 
     def test(self, model, device):
         model.to(device)
@@ -126,12 +128,11 @@ class Coordinate_model(nn.Module):
 
 
 if __name__ == '__main__':
-    train = False # if train or not
+    train = True # if train or not
     test = False # if test or not
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     coordinatenet = CoordinateNet()
     coordinate_model = Coordinate_model()
-    print(coordinate_model)
     if train:
         coordinatenet.train_net(coordinate_model, device)
     if test:

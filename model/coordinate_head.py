@@ -5,7 +5,7 @@ from detectron2.layers import cat, Conv2d
 from detectron2.utils.registry import Registry
 from detectron2.config import CfgNode
 
-from .layers import conv_bn_relu
+from .layers import conv_bn_relu, GroupedDilatedConv, GroupedDilatedConvV2, DilatedResNextBlock
 
 ROI_COORDINATE_HEAD_REGISTRY = Registry('ROI_COORDINATE_HEAD_REGISTRY')
 
@@ -28,12 +28,18 @@ class coordinateHead(torch.nn.Module):
         padding = (kernel_size-1) * dilation // 2
         for i in range(self.n_stacked_convs):
             # use custom layer instead of detectron2 wrapper layer due to compatible reason 
-            layer = conv_bn_relu(input_channels * (2**i), input_channels * (2**(i+1)), kernel_size, stride=2, padding=padding, dilation=dilation)
+            # layer = conv_bn_relu(input_channels * (2**i), input_channels * (2**(i+1)), kernel_size, stride=2, padding=padding, dilation=dilation)
+            # layer = GroupedDilatedConv(input_channels*(2**i), input_channels * (2**(i+1)), kernel_size, dilations=[2,3],stride=2)
+            dilations = [1,2,3,4]
+            # dilations = [2,2,2,2,2,2,2]
+            layer = GroupedDilatedConvV2(input_channels*(2**i), input_channels * (2**(i+1)), kernel_size, stride=2, dilations=dilations)
             layer_name = self._name_layers(i)
             self.add_module(layer_name, layer)
         # self.conv_bn_relu_last = conv_bn_relu(input_channels, 3, kernel_size=1)
-        self.avg_pooling_layer = torch.nn.AdaptiveAvgPool2d((1,1))
         final_num_channels = input_channels * (2**(self.n_stacked_convs))
+        cardinality = 32
+        self.dilated_resnext_block = DilatedResNextBlock(final_num_channels, bottleneck_width=final_num_channels//cardinality, cardinality=cardinality, expansion=1)
+        self.avg_pooling_layer = torch.nn.AdaptiveAvgPool2d((1,1))
         self.linear = torch.nn.Linear(final_num_channels, 3)
                    
     def _name_layers(self, i:int):
@@ -45,6 +51,7 @@ class coordinateHead(torch.nn.Module):
             layer_name = self._name_layers(i)
             x = getattr(self, layer_name)(x)
         # x = self.conv_bn_relu_last(x)
+        x = self.dilated_resnext_block(x)
         x = self.avg_pooling_layer(x)
         x = torch.squeeze(x) # del dim if dim = 1
         x = self.linear(x)
