@@ -118,10 +118,11 @@ class Decoder(nn.Module):
         self.n_layers = n_layers
         assert in_channels % (2**n_layers) == 0, f'in_channel = {in_channels} not divisible by {2**(n_layers)}'
         for i in range(n_layers):
-            # apply depth-wise convolution
+            # apply 1x1 kernel to decrease the number of channels, then followed by 3x3 kernel
             conv1 = conv_bn_relu(in_channels//(2**i), in_channels//(2**(i+1)), kernel_size=1)
             self.add_module(f'decoder_conv1_{i+1}', conv1)
-            conv3 = conv_bn_relu(in_channels//(2**(i+1)), in_channels//(2**(i+1)), kernel_size=3, padding=1)
+            channels = in_channels//(2**(i+1))
+            conv3 = conv_bn_relu(channels, channels, kernel_size=3, padding=1)
             self.add_module(f'decoder_conv3_{i+1}', conv3)
             if use_upsample and (i-1) % 2 == 0:
                 upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
