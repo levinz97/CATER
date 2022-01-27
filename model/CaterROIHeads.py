@@ -43,16 +43,16 @@ class CaterROIHeads(StandardROIHeads):
         pass
 
     def _init_coordinate_head(self, cfg, input_shape):
-        self.img_per_batch         = cfg.SOLVER.IMS_PER_BATCH
-        num_total_boxes            = self.batch_size_per_image
-        self.num_fg_boxes          = floor(num_total_boxes * self.positive_fraction)
-        self.use_backbone_features = cfg.MODEL.ROI_COORDINATE_HEAD.USE_BACKBONE_FEATURES
-        coordinate_in_features     = cfg.MODEL.ROI_COORDINATE_HEAD.IN_FEATURES if self.use_backbone_features else None
-        self.img_size              = cfg.MODEL.ROI_COORDINATE_HEAD.IMG_SIZE
-        self.hide_img_size         = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE
+        self.img_per_batch         = cfg.SOLVER.IMS_PER_BATCH # g number of a batch
+        num_total_boxes            = self.batch_size_per_image # boex number of a image
+        self.num_fg_boxes          = floor(num_total_boxes * self.positive_fraction) # fg boxes number of a image
+        self.use_backbone_features = cfg.MODEL.ROI_COORDINATE_HEAD.USE_BACKBONE_FEATURES # True
+        coordinate_in_features     = cfg.MODEL.ROI_COORDINATE_HEAD.IN_FEATURES if self.use_backbone_features else None # ["p2", "p3", "p4", "p5"]
+        self.img_size              = cfg.MODEL.ROI_COORDINATE_HEAD.IMG_SIZE # (240,320)
+        self.hide_img_size         = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE () # (128,128)
         in_channels = 6 # raw image 3 + cropped image within bbox 3
-        img_coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE
-        img_coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE
+        img_coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE # (128,128)
+        img_coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE # 'ROIAlignV2'
         img_coordinate_pooler_sampling_ratio = 0
         img_coordinate_pooler_scale          = [1] # on raw image
         

@@ -7,8 +7,10 @@ import numpy as np
 import os
 import cv2
 
+
 # dirname = os.path.join('.','raw_data','first_frame', 'all_actions_first_frame')
 dirname = os.path.join('.','raw_data', 'raw_data_from_005200_to_005699_sort')
+
 
 class GenerateDataset:
     def __init__(self, dirname:str, reset_logger = False):
