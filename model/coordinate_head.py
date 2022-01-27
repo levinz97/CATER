@@ -53,7 +53,7 @@ class coordinateHead(torch.nn.Module):
         # x = self.conv_bn_relu_last(x)
         x = self.dilated_resnext_block(x)
         x = self.avg_pooling_layer(x)
-        x = torch.squeeze(x)
+        x = torch.squeeze(x) # del dim if dim = 1
         x = self.linear(x)
         return x
 
