@@ -6,7 +6,7 @@ import torch.nn.functional as F
 # torch.autograd.set_detect_anomaly(True)
 
 
-def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilation=1, padding=0, use_bn=True, use_relu=True, groups=1):
+def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilation=1, padding=0, use_bn=True, use_relu=True, groups=1, inplace=True):
     layers = []
     layers.append(
         nn.Conv2d(input_channels,
@@ -21,7 +21,7 @@ def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilatio
     if use_bn:
         layers.append(nn.BatchNorm2d(output_channels))
     if use_relu:
-        layers.append(nn.LeakyReLU(0.01, inplace=True))
+        layers.append(nn.LeakyReLU(0.01, inplace=inplace))
 
     return nn.Sequential(*layers)
 
@@ -141,15 +141,16 @@ class Decoder(nn.Module):
         return x
 
 class DilatedResNextBlock(nn.Module):
-    def __init__(self, in_channels, bottleneck_width=7, cardinality=32, stride=1, expansion=2):
+    def __init__(self, in_channels, bottleneck_width=7, cardinality=32, stride=1, expansion=2, dilation=2):
         super().__init__()
         inner_width = bottleneck_width * cardinality
         self.expansion = expansion
+        padding = (3-1) * dilation // 2
         self.basic = nn.Sequential(OrderedDict(
             [
-                ('ConvBnR1_0', conv_bn_relu(in_channels, inner_width, kernel_size=1, stride=1)),
-                ('ConvBnR3_0', conv_bn_relu(inner_width, inner_width, kernel_size=3, dilation=2, padding=2, stride=stride, groups=cardinality)),
-                ('ConvBnR1_1', conv_bn_relu(in_channels, inner_width*self.expansion, kernel_size=1, stride=1, use_relu=False)),
+                ('ConvBnR1_0', conv_bn_relu(in_channels, inner_width, kernel_size=1, stride=1, inplace=False)),
+                ('ConvBnR3_0', conv_bn_relu(inner_width, inner_width, kernel_size=3, dilation=dilation, padding=padding, stride=stride, groups=cardinality, inplace=False)),
+                ('ConvBnR1_1', conv_bn_relu(inner_width, inner_width*self.expansion, kernel_size=1, stride=1, use_relu=False, inplace=False))
             ]
         ))
         self.shortcut = nn.Sequential()
@@ -162,7 +163,7 @@ class DilatedResNextBlock(nn.Module):
     def forward(self, x):
         out = self.basic(x)
         out += self.shortcut(x)
-        out = F.relu(self.bn0(out),inplace=True)
+        out = F.relu(self.bn0(out))
         return out
 
 
