@@ -18,20 +18,20 @@ class CoordinateNet():
         image_dir = os.path.join('images', 'image')
         train_annotations = os.path.join('annotations', 'train_dataset.json')
         test_annotations = os.path.join('annotations', 'test_dataset.json')
-        self.train_batch_size = 1
+        self.train_batch_size = 2
         self.test_batch_size = 1
         self.train_dataset = CaterDataloader(root, image_dir, train_annotations, train=True)
         self.train_dataloader = DataLoader(dataset=self.train_dataset, batch_size=self.train_batch_size, collate_fn=collate)
         self.test_dataset = CaterDataloader(root, image_dir, test_annotations, train=False)
         self.test_dataloader = DataLoader(dataset=self.test_dataset, batch_size=self.test_batch_size, collate_fn=collate)
-        self.writer = SummaryWriter("coordinate_loss_{}".format(self.train_batch_size))
+        self.writer = SummaryWriter("coordinate_loss_resnetmodify_{}".format(self.train_batch_size))
 
     def train_net(self, model, device):
         num_epochs = 20
         model.to(device)
         loss_mse = nn.MSELoss()
         loss_mse.to(device)
-        optimizer = torch.optim.SGD(model.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0001)
+        optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=0.0001)
 
         total_train_step = 0
         for epoch in range(num_epochs):
@@ -79,15 +79,15 @@ class CoordinateNet():
                 # loss = model(imgs, annotations, pred_bbox_d2)
                 total_test_loss += loss
                 step += 1
-                if step % 5 == 0:
-                    print(step)
+                # if step % 5 == 0:
+                #     print(step)
             print(total_test_loss.item())
             average_loss = total_test_loss / step
             print(average_loss.item())
 
     def predict(self, imgs):
         pred_bbox_d2 = self.detectron(imgs)
-        
+
 
 def collate(batch):
     list1 = []
@@ -102,15 +102,23 @@ def collate(batch):
 class Coordinate_model(nn.Module):
     def __init__(self):
         super(Coordinate_model, self).__init__()
-        self.resnet_model = torchvision.models.resnext50_32x4d(pretrained=True)
-        self.resnet_model.conv1 = nn.Conv2d(6, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-        num_ftrs = self.resnet_model.fc.in_features
-        self.resnet_model.fc = nn.Linear(num_ftrs, 3)
-        # print(self.resnet_model)
+        model = torchvision.models.resnet50(pretrained=True)
+        model.conv1 = nn.Conv2d(6, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        self.backbone = torch.nn.Sequential(*list(model.children())[:-3])
+        self.avgpool = model.avgpool
+        self.flatten = nn.Flatten()
+        self.fc = nn.Sequential(
+            nn.Linear(in_features=1024, out_features=256, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(in_features=256, out_features=3, bias=True),
+        )
 
     def forward(self, img):
-        output = self.resnet_model(img)
-        # print(output.shape)
+        output = self.backbone(img)
+        output = self.avgpool(output)
+        output = self.flatten(output)
+        output = self.fc(output)
         return output
 
 
@@ -120,8 +128,9 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     coordinatenet = CoordinateNet()
     coordinate_model = Coordinate_model()
+    print(coordinate_model)
     if train:
         coordinatenet.train_net(coordinate_model, device)
     if test:
-        test_model = torch.load("./trained_model/coord_model_bz7_19.pth")  # load the trained model
+        test_model = torch.load("./trained_model/coord_model_resnext_15.pth")  # load the trained model
         coordinatenet.test(test_model, device)
