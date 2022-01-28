@@ -163,8 +163,8 @@ class CaterROIHeads(StandardROIHeads):
             vis_tensor(img_to_vis, False)
             vis_tensor(features_to_vis, True)
         
-        if self.use_backbone_features:
-            coordinate_features = self.selayer(coordinate_features)
+        # if self.use_backbone_features:
+        #     coordinate_features = self.selayer(coordinate_features)
         pred_coordinates = self.coordinate_head(coordinate_features)
         if self.training:
             loss_coord = coordinate_loss(pred_coordinates, fg_proposals)
