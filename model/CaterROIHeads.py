@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 from detectron2.layers import ShapeSpec
 from detectron2.layers.wrappers import cat
 from detectron2.modeling.poolers import ROIPooler
-from detectron2.modeling.roi_heads import select_foreground_proposals
+from detectron2.modeling.roi_heads import select_foreground_proposals,Res5ROIHeads
 
 from detectron2.modeling import StandardROIHeads, ROI_HEADS_REGISTRY
 
@@ -20,7 +20,7 @@ from.coordinate_head import (
 from utils import dispImg
 
 @ROI_HEADS_REGISTRY.register()
-class CaterROIHeads(StandardROIHeads):
+class CaterROIHeads(Res5ROIHeads):
     def __init__(self, cfg, input_shape):
         super().__init__(cfg, input_shape)
         self.separate_attrpred_on = cfg.MODEL.SEPARATE_ATTR_ON
@@ -47,7 +47,7 @@ class CaterROIHeads(StandardROIHeads):
         num_total_boxes            = self.batch_size_per_image # box number of a image
         self.num_fg_boxes          = floor(num_total_boxes * self.positive_fraction) # fg boxes number of a image
         self.use_backbone_features = cfg.MODEL.ROI_COORDINATE_HEAD.USE_BACKBONE_FEATURES # True
-        self.coordinate_in_features     = cfg.MODEL.ROI_COORDINATE_HEAD.IN_FEATURES if self.use_backbone_features else None # ["p2", "p3", "p4", "p5"]
+        self.coordinate_in_features= cfg.MODEL.ROI_COORDINATE_HEAD.IN_FEATURES if self.use_backbone_features else None # ["p2", "p3", "p4", "p5"]
         self.img_size              = cfg.MODEL.ROI_COORDINATE_HEAD.IMG_SIZE # (240,320)
         self.hide_img_size         = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE # (128,128)
         in_channels = 6 # raw image 3 + cropped image within bbox 3
@@ -117,6 +117,8 @@ class CaterROIHeads(StandardROIHeads):
             # do not use backbone features
             del features
         if self.training:
+            if len(instances) < 1:
+                return {}
             fg_proposals, _ = select_foreground_proposals(instances, self.num_classes)
             pred_boxes = [i.proposal_boxes for i in fg_proposals]
         else:
@@ -130,6 +132,8 @@ class CaterROIHeads(StandardROIHeads):
         # use additional features from backbone
         if self.use_backbone_features:
                 bb_features_coord = self.bb_coordinate_pooler(features_list, pred_boxes)
+                if need_visualization:
+                    backbone_features_to_vis = bb_features_coord[0, :, :, :].detach().clone()
                 bb_features_coord = self.bb_decoder(bb_features_coord)
                 coordinate_features = bb_features_coord
                 # coordinate_features = torch.cat((coordinate_features, bb_features_coord), dim=1)
@@ -155,14 +159,19 @@ class CaterROIHeads(StandardROIHeads):
             import numpy as np
             toImg = ttf.ToPILImage()
             # _resized_img = toImg(_resized_img)
-            img = tensor_to_vis.permute(1,2,0).numpy()[:,:, ::-1]
-            img += np.asarray(self.pixel_mean)
-            img = np.array(img, dtype=np.int32)
+            if tensor_to_vis.ndim < 3:
+                img = toImg(tensor_to_vis)
+            else:
+                img = tensor_to_vis.permute(1,2,0).numpy()[:,:, ::-1]
+                img += np.asarray(self.pixel_mean)
+                img = np.array(img, dtype=np.int32)
             dispImg("resized_img", img, kill_window)
         if need_visualization:
             # vis_tensor(images.__getitem__(0), False)
             vis_tensor(img_to_vis, False)
             vis_tensor(features_to_vis, True)
+            for i in range(backbone_features_to_vis.shape[0]): 
+                vis_tensor(backbone_features_to_vis[i], False)
         
         # if self.use_backbone_features:
         #     coordinate_features = self.selayer(coordinate_features)

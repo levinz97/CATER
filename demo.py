@@ -53,7 +53,8 @@ if __name__ == "__main__":
     register_cater_dataset.register_dataset(dataset_name='cater_test', annotations_location=test_annot_location, image_folder=test_img_folder)
     # set configuration file
     cfg = get_cfg()
-    cfg.merge_from_file("detectron2/configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
+    cfg.merge_from_file("detectron2/configs/COCO-InstanceSegmentation/mask_rcnn_R_50_C4_3x.yaml")
+    # cfg.merge_from_file("detectron2/configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
     add_cater_config(cfg)
     cfg.merge_from_file("config/Cater.yaml")
 
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     # cfg.TEST.EVAL_PERIOD = 80 # need to define hooks for evaluation
     cfg.DATALOADER.NUM_WORKERS = 6
 
-    cfg.MODEL.WEIGHTS = "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl"
+    # cfg.MODEL.WEIGHTS = "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl"
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 193
     # Total number of RoIs per training minibatch =
     #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
