@@ -7,6 +7,7 @@ def calculate_rf(kernel_size, dilations, stride, n_layers):
     kernel_size = (kernel_size-1)*dilations[0] + 1
     if isinstance(stride, int):
         stride = np.repeat(stride, n_layers)
+        n_layers = len(dilations)
     cumprod_stride = np.cumprod(stride)
     print(f'cumprod_stride={cumprod_stride}')
     rf = kernel_size
@@ -18,9 +19,9 @@ def calculate_rf(kernel_size, dilations, stride, n_layers):
 
 
 if __name__ == '__main__':
-    n_layers = 3
+    n_layers = 4
     # print(calculate_rf(kernel_size=3, dilations=1, stride=2, n_layers=n_layers))
-    # print(calculate_rf(kernel_size=3, dilations=2, stride=2, n_layers=n_layers))
+    print(calculate_rf(kernel_size=3, dilations=2, stride=2, n_layers=n_layers))
     # print(calculate_rf(kernel_size=3, dilations=3, stride=2, n_layers=n_layers))
     # print(calculate_rf(kernel_size=3, dilations=4, stride=2, n_layers=n_layers))
     # print(calculate_rf(kernel_size=5, dilations=2, stride=2, n_layers=n_layers))
