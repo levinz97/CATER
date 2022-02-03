@@ -3,9 +3,9 @@ from typing import Dict, List, Optional
 from detectron2.layers import ShapeSpec
 from detectron2.layers.wrappers import cat
 from detectron2.modeling.poolers import ROIPooler
-from detectron2.modeling.roi_heads import select_foreground_proposals,Res5ROIHeads
+from detectron2.modeling.roi_heads import select_foreground_proposals, Res5ROIHeads, StandardROIHeads
 
-from detectron2.modeling import StandardROIHeads, ROI_HEADS_REGISTRY
+from detectron2.modeling import ROI_HEADS_REGISTRY
 
 from detectron2.structures import ImageList, Instances
 import torch
@@ -20,7 +20,7 @@ from.coordinate_head import (
 from utils import dispImg
 
 @ROI_HEADS_REGISTRY.register()
-class CaterROIHeads(Res5ROIHeads):
+class CaterROIHeads(StandardROIHeads):
     def __init__(self, cfg, input_shape):
         super().__init__(cfg, input_shape)
         self.separate_attrpred_on = cfg.MODEL.SEPARATE_ATTR_ON
@@ -137,15 +137,15 @@ class CaterROIHeads(Res5ROIHeads):
                 bb_features_coord = self.bb_decoder(bb_features_coord)
                 coordinate_features = bb_features_coord
                 # coordinate_features = torch.cat((coordinate_features, bb_features_coord), dim=1)
-        'concatenate image with coordinate_features'
-        if self.training:        
-            if self.num_fg_boxes * self.img_per_batch != coordinate_features.shape[0]:
-                return {}
-            num_images = self.img_per_batch
-            num_bboxes = self.num_fg_boxes
-        else:
-            num_images = 1
-            num_bboxes = coordinate_features.shape[0]
+        # 'concatenate image with coordinate_features'
+        # if self.training:        
+        #     if self.num_fg_boxes * self.img_per_batch != coordinate_features.shape[0]:
+        #         return {}
+        #     num_images = self.img_per_batch
+        #     num_bboxes = self.num_fg_boxes
+        # else:
+        #     num_images = 1
+        #     num_bboxes = coordinate_features.shape[0]
         # # first reshape coordinate_features to [img_per_batch, num_fg_boxes, *HIDE_IMG_SIZE]
         # coordinate_features = coordinate_features.unsqueeze_(0).view(num_images, num_bboxes, -1, *self.hide_img_size)
         # # then expand the resized_img to [img_per_batch, num_fg_boxes, *HIDE_IMG_SIZE]
