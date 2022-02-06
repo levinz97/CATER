@@ -11,7 +11,7 @@ from detectron2.structures import ImageList, Instances
 import torch
 from torch import nn
 
-from.layers import Decoder, SELayer
+from.layers import Decoder, DilatedResNextBlock, Encoder, SELayer
 from.coordinate_head import (
     build_coordinate_head,
     coordinate_loss
@@ -50,7 +50,7 @@ class CaterROIHeads(StandardROIHeads):
         self.coordinate_in_features= cfg.MODEL.ROI_COORDINATE_HEAD.IN_FEATURES if self.use_backbone_features else None # ["p2", "p3", "p4", "p5"]
         self.img_size              = cfg.MODEL.ROI_COORDINATE_HEAD.IMG_SIZE # (240,320)
         self.hide_img_size         = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE # (128,128)
-        in_channels = 6 # raw image 3 + cropped image within bbox 3
+        in_channels = 6*(2**3) # raw image 3 + cropped image within bbox 3
         img_coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE # (128,128)
         img_coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE # 'ROIAlignV2'
         img_coordinate_pooler_sampling_ratio = 0
@@ -64,16 +64,16 @@ class CaterROIHeads(StandardROIHeads):
             bb_coordinate_pooler_scale = [1.0 / input_shape[k].stride for k in self.coordinate_in_features]
             decoder_in_channels = [input_shape[f].channels for f in self.coordinate_in_features][0]
             decoder_out_channels = decoder_in_channels // (2**channel_decrease_ratio)
-            in_channels = decoder_out_channels
+            in_channels += decoder_out_channels
             # decoder to decrease the number of channels from backbones' features, and upsample it 
-            self.bb_decoder = Decoder(decoder_in_channels, channel_decrease_ratio, use_upsample=True)
+            self.bb_decoder = Decoder(decoder_in_channels, channel_decrease_ratio, use_upsample=False)
             self.bb_coordinate_pooler = ROIPooler(
                 output_size=bb_coordinate_pooler_resolution,
                 scales=bb_coordinate_pooler_scale,
                 sampling_ratio=bb_coordinate_pooler_sampling_ratio,
                 pooler_type=bb_coordinate_pooler_type
             )
-            self.selayer = SELayer(in_channels, reduction=4)
+            # self.selayer = SELayer(in_channels, reduction=4)
 
         self.img_coordinate_pooler = ROIPooler(
                 output_size=img_coordinate_pooler_resolution,
@@ -81,6 +81,7 @@ class CaterROIHeads(StandardROIHeads):
                 sampling_ratio=img_coordinate_pooler_sampling_ratio,
                 pooler_type=img_coordinate_pooler_type
             )
+        self.img_encoder = Encoder(in_channels=6)
         self.coordinate_head = build_coordinate_head(cfg, in_channels)
 
     
@@ -135,24 +136,27 @@ class CaterROIHeads(StandardROIHeads):
                 if need_visualization:
                     backbone_features_to_vis = bb_features_coord[0, :, :, :].detach().clone()
                 bb_features_coord = self.bb_decoder(bb_features_coord)
-                coordinate_features = bb_features_coord
+                # coordinate_features = bb_features_coord
                 # coordinate_features = torch.cat((coordinate_features, bb_features_coord), dim=1)
-        # 'concatenate image with coordinate_features'
-        # if self.training:        
-        #     if self.num_fg_boxes * self.img_per_batch != coordinate_features.shape[0]:
-        #         return {}
-        #     num_images = self.img_per_batch
-        #     num_bboxes = self.num_fg_boxes
-        # else:
-        #     num_images = 1
-        #     num_bboxes = coordinate_features.shape[0]
-        # # first reshape coordinate_features to [img_per_batch, num_fg_boxes, *HIDE_IMG_SIZE]
-        # coordinate_features = coordinate_features.unsqueeze_(0).view(num_images, num_bboxes, -1, *self.hide_img_size)
-        # # then expand the resized_img to [img_per_batch, num_fg_boxes, *HIDE_IMG_SIZE]
-        # resized_img = resized_img.unsqueeze_(1).expand(-1, num_bboxes, -1,*self.hide_img_size)
-        # coordinate_features = torch.cat((coordinate_features, resized_img), dim=2)
-        # coordinate_features = coordinate_features.view(num_bboxes*num_images, -1, *self.hide_img_size)
-        
+        'concatenate image with coordinate_features'
+        if self.training:        
+            if self.num_fg_boxes * self.img_per_batch != coordinate_features.shape[0]:
+                return {}
+            num_images = self.img_per_batch
+            num_bboxes = self.num_fg_boxes
+        else:
+            num_images = 1
+            num_bboxes = coordinate_features.shape[0]
+        # first reshape coordinate_features to [img_per_batch, num_fg_boxes, *HIDE_IMG_SIZE]
+        coordinate_features = coordinate_features.unsqueeze_(0).view(num_images, num_bboxes, -1, *self.hide_img_size)
+        # then expand the resized_img to [img_per_batch, num_fg_boxes, *HIDE_IMG_SIZE]
+        resized_img = resized_img.unsqueeze_(1).expand(-1, num_bboxes, -1,*self.hide_img_size)
+        coordinate_features = torch.cat((coordinate_features, resized_img), dim=2)
+        coordinate_features = coordinate_features.view(num_bboxes*num_images, -1, *self.hide_img_size)
+        coordinate_features = self.img_encoder(coordinate_features)
+        coordinate_features = torch.cat((coordinate_features, bb_features_coord), dim=1)
+
+
         def vis_tensor(tensor_to_vis: torch.Tensor, kill_window):
             tensor_to_vis = tensor_to_vis.to("cpu")
             from torchvision.transforms import transforms as ttf

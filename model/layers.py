@@ -106,9 +106,29 @@ class GroupedDilatedConvV2(nn.Module):
         output = self.last_conv1(output)
         # x = self.downsample_conv1(x)
         x = self.downsample(x)
-        output = cat([output, x], dim=1)
+        # output = cat([output, x], dim=1)
+        output += x
         output = F.relu(self.bn0(output), inplace=True)
         return output
+
+class Encoder(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.encode_layers = self._make_layers(in_channels)
+    
+    def _make_layers(self, in_channels):
+        layers = OrderedDict([
+            ("ConvBnR_7_0", conv_bn_relu(in_channels, 2*in_channels, kernel_size=7, stride=2, padding=3)),
+            ("ResNextBlock_3_1", DilatedResNextBlock(2*in_channels, bottleneck_width=2*in_channels//4, cardinality=4, stride=2, expansion=2)),
+            ("ResNextBlock_3_2", DilatedResNextBlock(4*in_channels, bottleneck_width=4*in_channels//4, cardinality=4, stride=2, expansion=2)),
+            ("ResNextBlock_3_3", DilatedResNextBlock(8*in_channels, bottleneck_width=8*in_channels//4, cardinality=4, stride=2, expansion=1)),
+            ("ResNextBlock_3_4", DilatedResNextBlock(8*in_channels, bottleneck_width=8*in_channels//4, cardinality=4, stride=1, expansion=1)),
+        ])
+
+        return nn.Sequential(layers)
+    
+    def forward(self,x):
+        return self.encode_layers(x)
 
 class Decoder(nn.Module):
     def __init__(self, in_channels, n_layers, use_upsample=True):

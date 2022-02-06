@@ -32,11 +32,13 @@ class coordinateHead(torch.nn.Module):
             # layer = GroupedDilatedConv(input_channels*(2**i), input_channels * (2**(i+1)), kernel_size, dilations=[2,3],stride=2)
             dilations = [1,2,3]
             # dilations = [2,2,2,2,2,2,2]
-            layer = GroupedDilatedConvV2(input_channels*(2**i), input_channels * (2**(i+1)), kernel_size, stride=2, dilations=dilations)
+            # layer = GroupedDilatedConvV2(input_channels*(2**i), input_channels * (2**(i+1)), kernel_size, stride=2, dilations=dilations)
+            layer = GroupedDilatedConvV2(input_channels, input_channels, kernel_size, stride=2, dilations=dilations)
             layer_name = self._name_layers(i)
             self.add_module(layer_name, layer)
         # self.conv_bn_relu_last = conv_bn_relu(input_channels, 3, kernel_size=1)
-        final_num_channels = input_channels * (2**(self.n_stacked_convs))
+        # final_num_channels = input_channels * (2**(self.n_stacked_convs))
+        final_num_channels = input_channels 
         # cardinality = 28
         # self.dilated_resnext_block = DilatedResNextBlock(final_num_channels, bottleneck_width=final_num_channels//cardinality, cardinality=cardinality, expansion=1)
         # cardinality = 28
