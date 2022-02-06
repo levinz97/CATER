@@ -53,7 +53,9 @@ if __name__ == "__main__":
     register_cater_dataset.register_dataset(dataset_name='cater_test', annotations_location=test_annot_location, image_folder=test_img_folder)
     # set configuration file
     cfg = get_cfg()
+    # cfg.merge_from_file("detectron2/configs/COCO-InstanceSegmentation/mask_rcnn_R_50_C4_3x.yaml")
     cfg.merge_from_file("detectron2/configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
+    cfg.MODEL.WEIGHTS = "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl"
     add_cater_config(cfg)
     cfg.merge_from_file("config/Cater.yaml")
 
@@ -62,7 +64,6 @@ if __name__ == "__main__":
     # cfg.TEST.EVAL_PERIOD = 80 # need to define hooks for evaluation
     cfg.DATALOADER.NUM_WORKERS = 6
 
-    cfg.MODEL.WEIGHTS = "detectron2://COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl"
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 193
     # Total number of RoIs per training minibatch =
     #   ROI_HEADS.BATCH_SIZE_PER_IMAGE * SOLVER.IMS_PER_BATCH
@@ -112,7 +113,9 @@ if __name__ == "__main__":
         cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3
         cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
         predictor = DefaultPredictor(cfg)
-        test_img = cv2.imread("test.png")
+        img_name = "test.png"
+        img_name = 'CATER_new_005497_100.png'
+        test_img = cv2.imread(img_name)
         test_img = cv2.cvtColor(test_img, cv2.COLOR_RGB2BGR)
         cater_metadata = MetadataCatalog.get("cater")
         cater_metadata.set(evaluator_type="coco")
@@ -137,6 +140,6 @@ if __name__ == "__main__":
             class_name = class_catalog[int(torch.squeeze(class_idx)) + 1] # pred_classes starts from 0, in json from 1
             print(f"{class_name}")
             v = vis.draw_text(f"{class_name}", position=(100,0))
-            v = vis.draw_text(f"{pred_coordinates}", position=(150,50))
+            v = vis.draw_text(f"{pred_coordinates}", position=(150,20))
             img = v.get_image()[:, :, ::-1]
             dispImg("prediction", img, kill_window=True)
