@@ -6,7 +6,7 @@ import torch.nn.functional as F
 # torch.autograd.set_detect_anomaly(True)
 
 
-def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilation=1, padding=0, use_bn=True, use_relu=True, groups=1):
+def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilation=1, padding=0, use_bn=True, use_relu=True, groups=1, inplace=True):
     layers = []
     layers.append(
         nn.Conv2d(input_channels,
@@ -21,7 +21,7 @@ def conv_bn_relu(input_channels, output_channels, kernel_size, stride=1, dilatio
     if use_bn:
         layers.append(nn.BatchNorm2d(output_channels))
     if use_relu:
-        layers.append(nn.LeakyReLU(0.01, inplace=True))
+        layers.append(nn.LeakyReLU(0.01, inplace=inplace))
 
     return nn.Sequential(*layers)
 
@@ -84,9 +84,14 @@ class GroupedDilatedConvV2(nn.Module):
                     layers.append(layer)
                     input_channel = output_channel
                 self.add_module(layer_name, nn.Sequential(*layers))
-            self.last_conv1 = conv_bn_relu(output_channel*self.n_dilations, input_channels, kernel_size=1)
-            # self.downsample_conv1 = conv_bn_relu(input_channels, input_channels, kernel_size=1, stride=2)
-            self.downsample = nn.MaxPool2d(1,2)
+            self.last_conv1 = conv_bn_relu(output_channel*self.n_dilations, output_channels, kernel_size=1, use_bn=False, use_relu=False)
+            self.bn0 = nn.BatchNorm2d(output_channels)
+            self.downsample = nn.Sequential()
+            if stride != 1 or input_channels != output_channels:
+                if stride == 2 and input_channels == output_channels:
+                    self.downsample = nn.MaxPool2d(1,2)
+                else:
+                    self.downsample = conv_bn_relu(input_channels, output_channels, kernel_size=1, stride=stride)
         else:
             raise TypeError("dilations must be a list or a single integer")
 
@@ -105,8 +110,49 @@ class GroupedDilatedConvV2(nn.Module):
         output = self.last_conv1(output)
         # x = self.downsample_conv1(x)
         x = self.downsample(x)
-        output = cat([output, x], dim=1)
+        # output = cat([output, x], dim=1)
+        output += x
+        output = F.relu(self.bn0(output), inplace=True)
         return output
+
+class Encoder(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.encode_layers = self._make_layers(in_channels)
+    
+    def _make_layers(self, in_channels):
+        layers = OrderedDict([
+            ("ConvBnR_7_0", conv_bn_relu(in_channels, 2*in_channels, kernel_size=7, stride=2, padding=3)),
+            ("ResNextBlock_3_1", DilatedResNextBlock(2*in_channels, bottleneck_width=2*in_channels//4, cardinality=4, stride=2, expansion=2)),
+            ("ResNextBlock_3_2", DilatedResNextBlock(4*in_channels, bottleneck_width=4*in_channels//4, cardinality=4, stride=2, expansion=2)),
+            ("ResNextBlock_3_3", DilatedResNextBlock(8*in_channels, bottleneck_width=8*in_channels//4, cardinality=4, stride=2, expansion=1)),
+            ("ResNextBlock_3_4", DilatedResNextBlock(8*in_channels, bottleneck_width=8*in_channels//4, cardinality=4, stride=1, expansion=1)),
+        ])
+
+        return nn.Sequential(layers)
+    
+    def forward(self,x):
+        return self.encode_layers(x)
+
+class Encoder_V2(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        self.encode_layers = self._make_layers(in_channels)
+    
+    def _make_layers(self, in_channels):
+        layers = OrderedDict([
+            ("ConvBnR_7_0", conv_bn_relu(in_channels, 2*in_channels, kernel_size=7, stride=2, padding=3)),
+            ("GroupedDilatedConvV2_3_1", GroupedDilatedConvV2(2*in_channels, 2*in_channels, kernel_size=3, stride=2, dilations=[1,6,12,18])),
+            ("ConvBnR_3_2", conv_bn_relu(2*in_channels, 4*in_channels, kernel_size=3, stride=2, padding=1)),
+            ("GroupedDilatedConvV2_3_3", GroupedDilatedConvV2(4*in_channels, 4*in_channels, kernel_size=3, stride=2, dilations=[1,6,12,18])),
+            ("ConvBnR_3_4", conv_bn_relu(4*in_channels, 8*in_channels, kernel_size=3, stride=1, padding=1)),
+            ("GroupedDilatedConvV2_3_5", GroupedDilatedConvV2(8*in_channels, 8*in_channels, kernel_size=3, stride=1, dilations=[1,6,12,18])),
+        ])
+
+        return nn.Sequential(layers)
+    
+    def forward(self,x):
+        return self.encode_layers(x)
 
 class Decoder(nn.Module):
     def __init__(self, in_channels, n_layers, use_upsample=True):
@@ -116,10 +162,11 @@ class Decoder(nn.Module):
         self.n_layers = n_layers
         assert in_channels % (2**n_layers) == 0, f'in_channel = {in_channels} not divisible by {2**(n_layers)}'
         for i in range(n_layers):
-            # apply depth-wise convolution
+            # apply 1x1 kernel to decrease the number of channels, then followed by 3x3 kernel
             conv1 = conv_bn_relu(in_channels//(2**i), in_channels//(2**(i+1)), kernel_size=1)
             self.add_module(f'decoder_conv1_{i+1}', conv1)
-            conv3 = conv_bn_relu(in_channels//(2**(i+1)), in_channels//(2**(i+1)), kernel_size=3, padding=1)
+            channels = in_channels//(2**(i+1))
+            conv3 = conv_bn_relu(channels, channels, kernel_size=3, padding=1)
             self.add_module(f'decoder_conv3_{i+1}', conv3)
             if use_upsample and (i-1) % 2 == 0:
                 upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
@@ -138,15 +185,16 @@ class Decoder(nn.Module):
         return x
 
 class DilatedResNextBlock(nn.Module):
-    def __init__(self, in_channels, bottleneck_width=7, cardinality=32, stride=1, expansion=2):
+    def __init__(self, in_channels, bottleneck_width=7, cardinality=32, stride=1, expansion=2, dilation=2):
         super().__init__()
         inner_width = bottleneck_width * cardinality
         self.expansion = expansion
+        padding = (3-1) * dilation // 2
         self.basic = nn.Sequential(OrderedDict(
             [
-                ('ConvBnR1_0', conv_bn_relu(in_channels, inner_width, kernel_size=1, stride=1)),
-                ('ConvBnR3_0', conv_bn_relu(inner_width, inner_width, kernel_size=3, dilation=2, padding=2, stride=stride, groups=cardinality)),
-                ('ConvBnR1_1', conv_bn_relu(in_channels, inner_width*self.expansion, kernel_size=1, stride=1, use_relu=False)),
+                ('ConvBnR1_0', conv_bn_relu(in_channels, inner_width, kernel_size=1, stride=1, inplace=False)),
+                ('ConvBnR3_0', conv_bn_relu(inner_width, inner_width, kernel_size=3, dilation=dilation, padding=padding, stride=stride, groups=cardinality, inplace=False)),
+                ('ConvBnR1_1', conv_bn_relu(inner_width, inner_width*self.expansion, kernel_size=1, stride=1, use_relu=False, inplace=False))
             ]
         ))
         self.shortcut = nn.Sequential()
@@ -159,7 +207,7 @@ class DilatedResNextBlock(nn.Module):
     def forward(self, x):
         out = self.basic(x)
         out += self.shortcut(x)
-        out = F.relu(self.bn0(out),inplace=True)
+        out = F.relu(self.bn0(out))
         return out
 
 
