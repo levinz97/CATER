@@ -11,7 +11,7 @@ from detectron2.structures import ImageList, Instances
 import torch
 from torch import nn
 
-from.layers import Decoder, DilatedResNextBlock, Encoder, SELayer
+from.layers import Decoder, DilatedResNextBlock, Encoder, Encoder_V2, SELayer
 from.coordinate_head import (
     build_coordinate_head,
     coordinate_loss
@@ -73,7 +73,7 @@ class CaterROIHeads(StandardROIHeads):
                 sampling_ratio=bb_coordinate_pooler_sampling_ratio,
                 pooler_type=bb_coordinate_pooler_type
             )
-            # self.selayer = SELayer(in_channels, reduction=4)
+            self.selayer = SELayer(in_channels, reduction=8)
 
         self.img_coordinate_pooler = ROIPooler(
                 output_size=img_coordinate_pooler_resolution,
@@ -81,7 +81,7 @@ class CaterROIHeads(StandardROIHeads):
                 sampling_ratio=img_coordinate_pooler_sampling_ratio,
                 pooler_type=img_coordinate_pooler_type
             )
-        self.img_encoder = Encoder(in_channels=6)
+        self.img_encoder = Encoder_V2(in_channels=6)
         self.coordinate_head = build_coordinate_head(cfg, in_channels)
 
     
@@ -177,8 +177,8 @@ class CaterROIHeads(StandardROIHeads):
             for i in range(backbone_features_to_vis.shape[0]): 
                 vis_tensor(backbone_features_to_vis[i], False)
         
-        # if self.use_backbone_features:
-        #     coordinate_features = self.selayer(coordinate_features)
+        if self.use_backbone_features:
+            coordinate_features = self.selayer(coordinate_features)
         pred_coordinates = self.coordinate_head(coordinate_features)
         if self.training:
             loss_coord = coordinate_loss(pred_coordinates, fg_proposals)

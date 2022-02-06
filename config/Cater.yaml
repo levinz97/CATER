@@ -20,7 +20,7 @@ MODEL:
     # larger receptive field
     CONV_HEAD_KERNEL_SIZE: 3
     DILATION: 2
-    CHANNEL_DECREASE_RATIO: 3
+    CHANNEL_DECREASE_RATIO: 2
 
 SOLVER:
     GAMMA: 0.8
