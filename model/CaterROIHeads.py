@@ -50,7 +50,7 @@ class CaterROIHeads(StandardROIHeads):
         self.coordinate_in_features= cfg.MODEL.ROI_COORDINATE_HEAD.IN_FEATURES if self.use_backbone_features else None # ["p2", "p3", "p4", "p5"]
         self.img_size              = cfg.MODEL.ROI_COORDINATE_HEAD.IMG_SIZE # (240,320)
         self.hide_img_size         = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE # (128,128)
-        in_channels = 6*(2**3) # raw image 3 + cropped image within bbox 3
+        in_channels = 6*(2**2) # raw image 3 + cropped image within bbox 3
         img_coordinate_pooler_resolution     = cfg.MODEL.ROI_COORDINATE_HEAD.HIDE_IMG_SIZE # (128,128)
         img_coordinate_pooler_type           = cfg.MODEL.ROI_COORDINATE_HEAD.POOLER_TYPE # 'ROIAlignV2'
         img_coordinate_pooler_sampling_ratio = 0
