@@ -142,11 +142,14 @@ class Encoder_V2(nn.Module):
     def _make_layers(self, in_channels):
         layers = OrderedDict([
             ("ConvBnR_7_0", conv_bn_relu(in_channels, 2*in_channels, kernel_size=7, stride=2, padding=3)),
-            ("GroupedDilatedConvV2_3_1", GroupedDilatedConvV2(2*in_channels, 2*in_channels, kernel_size=3, stride=2, dilations=[1,6,12,18])),
-            ("ConvBnR_3_2", conv_bn_relu(2*in_channels, 4*in_channels, kernel_size=3, stride=2, padding=1)),
-            ("GroupedDilatedConvV2_3_3", GroupedDilatedConvV2(4*in_channels, 4*in_channels, kernel_size=3, stride=2, dilations=[1,6,12,18])),
-            ("ConvBnR_3_4", conv_bn_relu(4*in_channels, 8*in_channels, kernel_size=3, stride=1, padding=1)),
-            ("GroupedDilatedConvV2_3_5", GroupedDilatedConvV2(8*in_channels, 8*in_channels, kernel_size=3, stride=1, dilations=[1,6,12,18])),
+            # ("GroupedDilatedConvV2_3_1", GroupedDilatedConvV2(2*in_channels, 4*in_channels, kernel_size=3, stride=2, dilations=[6,12,18,24])),
+            # ("GroupedDilatedConvV2_3_2", GroupedDilatedConvV2(4*in_channels, 4*in_channels, kernel_size=3, stride=2, dilations=[1,6,12,18])),
+            # ("GroupedDilatedConvV2_3_3", GroupedDilatedConvV2(4*in_channels, 4*in_channels, kernel_size=3, stride=2, dilations=[1,6,12,18])),
+            # ("GroupedDilatedConvV2_3_4", GroupedDilatedConvV2(4*in_channels, 4*in_channels, kernel_size=3, stride=1, dilations=[1,6,12,18])),
+            ("GroupedDilatedConvV2_3_1", GroupedDilatedConvV2(2*in_channels, 4*in_channels, kernel_size=3, stride=2, dilations=[6,12,18])),
+            ("GroupedDilatedConvV2_3_2", GroupedDilatedConvV2(4*in_channels, 4*in_channels, kernel_size=3, stride=2, dilations=[1,6,12])),
+            ("GroupedDilatedConvV2_3_3", GroupedDilatedConvV2(4*in_channels, 4*in_channels, kernel_size=3, stride=2, dilations=[1,6,12])),
+            ("GroupedDilatedConvV2_3_4", GroupedDilatedConvV2(4*in_channels, 4*in_channels, kernel_size=3, stride=1, dilations=[1,6,12])),
         ])
 
         return nn.Sequential(layers)
