@@ -13,7 +13,7 @@ import os
 
 
 class CaterDataloader(data.Dataset):
-    def __init__(self, root, image, annotations, transforms=None, train=True):
+    def __init__(self, root, image, annotations, train=True):
         cfg = get_cfg()
         cfg.merge_from_file("../detectron2/configs/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
         cfg.OUTPUT_DIR = os.path.join("../output", "best")
@@ -92,9 +92,9 @@ class CaterDataloader(data.Dataset):
             output = self.detectron(img_cv)
             pred_bbox_d2 = output['instances'].pred_boxes.to('cpu')
             # print(pred_bbox_d2)
-            iou = detectron2.structures.pairwise_iou(pred_bbox_d2, true_box)
+            iou = detectron2.structures.pairwise_iou(pred_bbox_d2, true_box) # get a tensor
             # print(iou)
-            order = torch.argmax(iou, dim=1)
+            order = torch.argmax(iou, dim=1) # get column idx of largest value in each row
             size = order.size(dim=0)
             coordinates_list = []
             for i in range(size):
@@ -104,25 +104,23 @@ class CaterDataloader(data.Dataset):
             cater_annotation["coordinates"] = coordinates_list
             cater_annotation["boxes"] = output['instances'].pred_boxes.tensor.to('cpu').round()
             # print(cater_annotation["boxes"])
-            # print(cater_annotation["coordinates"])
+            # print(cater_annotation["coordinates"].shape)
 
-        if self.transforms is not None:
-            img = self.transforms(img)
+        # if self.transforms is not None:
+        #     img = self.transforms(img)
 
-        data_transforms = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-        ])
+        resize_transforms = transforms.Resize((192, 192))
         reshape_img = torch.reshape(img, (-1, 3, 240, 320))
+        # print("1",reshape_img.shape)
+        transform_img = resize_transforms(reshape_img)
+        # print("2",transform_img.shape)
         idx = torch.tensor([0])
         step = 0
         for bbox in cater_annotation["boxes"]:
             bbox = torch.cat((idx, bbox), dim=0)
             bbox = torch.reshape(bbox, (-1, 5))
-            roi = torchvision.ops.roi_align(reshape_img, bbox, output_size=(224, 224), spatial_scale=1.0,
+            roi = torchvision.ops.roi_align(reshape_img, bbox, output_size=(192, 192), spatial_scale=1.0,
                                             sampling_ratio=-1)
-            roi = transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])(roi)
-            transform_img = data_transforms(reshape_img)
             new_img = torch.cat((transform_img, roi), dim=1)
             if step == 0:
                 cat_img = new_img
@@ -130,6 +128,7 @@ class CaterDataloader(data.Dataset):
                 cat_img = torch.cat((cat_img, new_img), dim=0)
             step += 1
         img = cat_img
+        # print("3",img.shape)
 
         return img, cater_annotation["coordinates"]
 
