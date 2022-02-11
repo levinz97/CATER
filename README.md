@@ -1,17 +1,48 @@
 # CATER Object detection 
+## Run the code:
 
-use the following command to connect to server, password required (provided in the email) if not using SSH key
+Train the model:
 
-sh ./connect_server.sh
+```
+python cater_train_net.py
+```
+or 
+```
+python demo.py -t -o <output_dir>
+```
+Evaluate the model:
+
+```
+python demo.py -e -o <saved_model_weight>
+```
+Do the inference:
+```
+python demo.py -i -o <saved_model_weight>
+```
+
 ## Requirements
+
+### for All Tasks:
+
+1. numpy
+
+2. matplotlib
+
+3. opencv
+
+### for 3D-Coordinates Prediction:
 
 1. Detectron2
 
-2. Pytorch
+2. Pytorch with Torchvision
 
-3. opencv-contrib
+### for semi-automatic annotation tool
 
-4. matplotlib
+1. scikit-learn
+
+2. opencv-contrib
+
+3. json
 
 ## directory_format:
 
@@ -37,14 +68,8 @@ sh ./connect_server.sh
 │   │   ├── 005400-005499
 │   │   ├── 005500-005599
 │   │   └── 005600-005699
-│   ├── all_action_camera_move
-│   │   ├── lists
-│   │   │   └── localize
-│   │   ├── scenes
-│   │   └── videos
 ├── scripts
 └── test
-    └── __pycache__
 
 *: must have
 
@@ -52,8 +77,13 @@ sh ./connect_server.sh
 
 ## 3D Coordination Prediction
 
-USE_BACKBONE_FEATURES=False:
-![3d loss without FPN.png](docs/3d_loss_without_FPN.png)
+### Compare USE_BACKBONE_FEATURES=False with USE_BACKBONE_FEATURES=True:
+![3d loss without FPN.png](docs/FPN_comparison.png)
 
-USE_BACKBONE_FEATURES=True:
-![3d loss with FPN.png](docs/3d_loss_with_FPN.png)
+### Compare Baseline with Proposed Model:
+![3d loss without FPN.png](docs/final_result.png)
+
+
+use the following command to connect to server, password required (provided in the email) if not using SSH key
+
+sh ./connect_server.sh
